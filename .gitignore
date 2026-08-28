@@ -31,3 +31,7 @@ ENV/
 .env
 .env.*
 !.env.example
+keys.txt
+
+# Local planning / working notes
+.planning/
