@@ -25,6 +25,22 @@ def test_whatsapp_sim_does_not_call_network():
     assert result.channel == "WHATSAPP"
 
 
+def test_whatsapp_live_failure_degrades_gracefully():
+    # A live send that raises (e.g. Twilio ContentSid/policy error) must not
+    # crash the recovery graph - it returns an undelivered result instead.
+    class _BoomClient:
+        class messages:
+            @staticmethod
+            def create(**kwargs):
+                raise RuntimeError("Twilio 400: ContentSid Required")
+
+    adapter = WhatsAppAdapter(live_mode=True, client=_BoomClient())
+    result = adapter.send(to="+919999999999", body="hi")
+    assert result.delivered is False
+    assert result.simulated is False
+    assert result.detail is not None
+
+
 def test_voice_stays_simulated_without_vapi_key():
     # No Vapi credentials -> voice never goes live, even if live_mode is on.
     adapter = VoiceAdapter(live_mode=True, api_key="")

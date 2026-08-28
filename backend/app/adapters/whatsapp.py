@@ -6,10 +6,13 @@ number). The client is built lazily so importing this module - and running the
 whole test suite in sim mode - needs no Twilio credentials.
 """
 
+import logging
 import uuid
 
 from app.adapters.base import DispatchResult
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 _CHANNEL = "WHATSAPP"
 
@@ -39,9 +42,13 @@ class WhatsAppAdapter:
         if not self._live:
             return DispatchResult(_CHANNEL, delivered=True, simulated=True, reference=f"sim_{uuid.uuid4().hex[:12]}")
 
-        message = self._twilio().messages.create(
-            from_=self._from,
-            to=f"whatsapp:{to}",
-            body=body,
-        )
+        try:
+            message = self._twilio().messages.create(
+                from_=self._from,
+                to=f"whatsapp:{to}",
+                body=body,
+            )
+        except Exception as exc:  # Twilio/network errors must not crash the graph
+            logger.warning("Live WhatsApp send failed: %s", exc)
+            return DispatchResult(_CHANNEL, delivered=False, simulated=False, detail=str(exc))
         return DispatchResult(_CHANNEL, delivered=True, simulated=False, reference=message.sid)
