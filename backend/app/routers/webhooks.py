@@ -30,6 +30,8 @@ from app.enums import (
     TransactionLifecycleState,
 )
 from app.models import TransactionState
+from app.orchestrator.factory import get_orchestrator_deps
+from app.orchestrator.graph import OrchestratorDeps, build_recovery_graph
 from app.services.audit import record_audit
 from app.services.classifier import UnclassifiableSignal, classify
 from app.services.idempotency import claim_event
@@ -63,6 +65,7 @@ def _extract_entity(body: dict[str, Any]) -> dict[str, Any]:
 async def ingest_razorpay_event(
     request: Request,
     db: Session = Depends(get_db),
+    deps: OrchestratorDeps = Depends(get_orchestrator_deps),
     x_razorpay_signature: str | None = Header(default=None),
     x_razorpay_event_id: str | None = Header(default=None),
 ):
@@ -144,8 +147,21 @@ async def ingest_razorpay_event(
         outcome=Outcome.SUCCESS,
     )
 
+    # Hand the transaction to the recovery DAG: diagnose -> gate -> intervene.
+    # Runs synchronously here so the demo shows the full loop per webhook; the
+    # settlement/outcome that closes it to RECOVERED arrives as a later event.
+    graph = build_recovery_graph(deps)
+    graph.invoke(
+        {
+            "transaction_id": transaction_id,
+            "telemetry": {"event_type": event_type, "error_code": error_code},
+        }
+    )
+
+    txn = db.query(TransactionState).filter_by(transaction_id=transaction_id).one()
     return {
         "status": "ingested",
         "transaction_id": transaction_id,
         "failure_class": int(failure_class),
+        "current_state": txn.current_state.value,
     }

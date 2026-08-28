@@ -15,6 +15,16 @@ from app.main import app
 from app import models as _models  # noqa: F401  (register models on Base.metadata)
 
 
+class _FakeDiagnosis:
+    """Offline diagnosis engine for tests: picks the deterministic per-class
+    default playbook, so webhook orchestration never calls the live model."""
+
+    def diagnose(self, *, failure_class, telemetry=None, user_message=None):
+        from app.services.diagnosis import Diagnosis, _DEFAULT_PLAYBOOK
+
+        return Diagnosis(root_cause="TEST", recommended_playbook=_DEFAULT_PLAYBOOK[failure_class])
+
+
 @pytest.fixture()
 def db_session():
     # StaticPool + shared in-memory connection so the schema persists for the
@@ -42,7 +52,22 @@ def client(db_session):
         finally:
             pass
 
+    def override_orchestrator_deps():
+        from app.adapters.dispatcher import build_dispatcher
+        from app.orchestrator.graph import OrchestratorDeps
+        from app.services.policy_sandbox import PolicySandbox
+
+        return OrchestratorDeps(
+            db=db_session,
+            diagnosis=_FakeDiagnosis(),
+            sandbox=PolicySandbox.from_default_policy(),
+            dispatch=build_dispatcher(db_session, live_mode=False),
+        )
+
+    from app.orchestrator.factory import get_orchestrator_deps
+
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_orchestrator_deps] = override_orchestrator_deps
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()

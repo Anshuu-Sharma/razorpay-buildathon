@@ -213,14 +213,27 @@ def build_nodes(deps: "OrchestratorDeps") -> dict[str, Callable[[RecoveryState],
 
     def reconcile(state: RecoveryState) -> dict[str, Any]:
         transaction_id = state["transaction_id"]
-        recovered = state.get("outcome_event") in _RECOVERY_OUTCOMES
-        disposition = "RECOVERED" if recovered else "FAILED"
-        _finalize(
-            deps, transaction_id, disposition, NodeName.RECONCILE,
-            {"outcome_event": state.get("outcome_event"), "disposition": disposition},
-            Outcome.SUCCESS if recovered else Outcome.FAILURE,
+        outcome_event = state.get("outcome_event")
+        if outcome_event in _RECOVERY_OUTCOMES:
+            _finalize(
+                deps, transaction_id, "RECOVERED", NodeName.RECONCILE,
+                {"outcome_event": outcome_event, "disposition": "RECOVERED"},
+                Outcome.SUCCESS,
+            )
+            return {"disposition": "RECOVERED"}
+
+        # No settlement yet: the intervention has been dispatched and we are
+        # awaiting the customer/bank. The transaction stays INTERVENING (set in
+        # execute) rather than being marked a failure prematurely.
+        record_audit(
+            deps.db,
+            transaction_id=transaction_id,
+            node_name=NodeName.RECONCILE,
+            action_type=ActionType.STATE_TRANSITION,
+            payload={"event": "AWAITING_OUTCOME", "outcome_event": outcome_event},
+            outcome=Outcome.SUCCESS,
         )
-        return {"disposition": disposition}
+        return {"disposition": None}
 
     return {"ingest": ingest, "diagnose": diagnose, "wait": wait, "execute": execute, "reconcile": reconcile}
 

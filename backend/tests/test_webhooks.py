@@ -62,6 +62,20 @@ def test_valid_webhook_persists_transaction_and_audit(client, db_session):
     assert any(a.payload.get("event") == "WEBHOOK_INGESTED" for a in audits)
 
 
+def test_webhook_kicks_off_orchestration(client, db_session):
+    resp = _post(client, _payment_failed_body(), event_id="evt_orch")
+    assert resp.status_code == 200
+    # The failure webhook drives the DAG through to a dispatched intervention.
+    assert resp.json()["current_state"] == "INTERVENING"
+
+    audits = db_session.query(AuditTrail).filter_by(transaction_id="txn_123").all()
+    node_names = {a.node_name for a in audits}
+    from app.enums import NodeName
+
+    assert NodeName.DIAGNOSE in node_names
+    assert NodeName.EXECUTE_INTERVENTION in node_names
+
+
 def test_invalid_signature_is_rejected_and_persists_nothing(client, db_session):
     resp = _post(client, _payment_failed_body(), signature="deadbeef")
     assert resp.status_code == 401
