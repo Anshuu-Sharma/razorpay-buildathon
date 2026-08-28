@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import health
 from app.database import engine, Base
+from app.models import audit_trail, transaction_state
 
 # Create database tables (sync for local sqlite simplicity during dev)
 Base.metadata.create_all(bind=engine)
