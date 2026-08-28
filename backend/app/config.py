@@ -34,8 +34,12 @@ class Settings(BaseSettings):
     live_mode: bool = False
 
     # Twilio WhatsApp (live channel). from_ is the sandbox/business number.
+    # Two auth modes are supported: classic Account SID + Auth Token, or an API
+    # Key (SK...) + secret, which still needs the Account SID (AC...) alongside it.
     twilio_account_sid: str = ""
     twilio_auth_token: str = ""
+    twilio_api_key_sid: str = ""
+    twilio_api_key_secret: str = ""
     twilio_whatsapp_from: str = "whatsapp:+14155238886"  # Twilio sandbox default
 
     # Vapi voice. Absent -> the voice adapter stays simulated even in live mode.

@@ -24,7 +24,15 @@ class WhatsAppAdapter:
         if self._client is None:
             from twilio.rest import Client
 
-            self._client = Client(settings.twilio_account_sid, settings.twilio_auth_token)
+            if settings.twilio_api_key_sid:
+                # API Key auth: (key_sid, key_secret, account_sid).
+                self._client = Client(
+                    settings.twilio_api_key_sid,
+                    settings.twilio_api_key_secret,
+                    settings.twilio_account_sid,
+                )
+            else:
+                self._client = Client(settings.twilio_account_sid, settings.twilio_auth_token)
         return self._client
 
     def send(self, to: str, body: str) -> DispatchResult:
