@@ -1,26 +1,227 @@
 @import "tailwindcss";
 
+/* ============================================================
+   Vulcan · Undercurrent — design tokens
+   ============================================================ */
+@theme {
+  /* Backgrounds — absolute black is the canvas */
+  --color-void: #000000;
+  --color-ink: #05070a;
+
+  /* Text */
+  --color-fg: #f4f3ef; /* warm off-white */
+  --color-muted: #8a8f98;
+  --color-faint: #4a4f57;
+
+  /* Brand / interactive */
+  --color-blue: #025ee8;
+  --color-blue-bright: #2c7bf0;
+
+  /* Data accents */
+  --color-cyan: #00e5ff;
+  --color-violet: #8e2de2;
+  --color-fail: #ff4444;
+  --color-wait: #f5a623;
+
+  /* Fonts (bound to next/font variables in layout.tsx) */
+  --font-serif: var(--font-playfair), Georgia, serif;
+  --font-sans: var(--font-hanken), system-ui, sans-serif;
+  --font-mono: var(--font-fira-code), ui-monospace, monospace;
+  --font-deva: var(--font-tiro-deva), Georgia, serif;
+  --font-deva-sans: var(--font-mukta), system-ui, sans-serif;
+
+  /* Motion */
+  --ease-cinematic: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Raw values reused in inline styles / rgba mixes */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --rzp-blue-glow: rgba(2, 94, 232, 0.45);
+  --grid-line: rgba(90, 130, 190, 0.14);
+  --wire-line: rgba(150, 205, 255, 0.22);
+  --glass-fill: rgba(255, 255, 255, 0.03);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-border-hover: rgba(2, 94, 232, 0.65);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* ============================================================
+   Base
+   ============================================================ */
+* {
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-void);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+/* Devanagari locale: swap headline + body families */
+:lang(hi) {
+  --font-serif: var(--font-deva), Georgia, serif;
+  --font-sans: var(--font-deva-sans), system-ui, sans-serif;
+}
+
+::selection {
+  background: var(--color-blue);
+  color: var(--color-fg);
+}
+
+/* Thin custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-void);
+}
+::-webkit-scrollbar-thumb {
+  background: #1a1d22;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #262a30;
+}
+
+/* ============================================================
+   Atmosphere utilities
+   ============================================================ */
+
+/* Film grain overlay — kills banding on black, adds texture */
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: screen;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation: grain-shift 0.6s steps(3) infinite;
+}
+@keyframes grain-shift {
+  0% { transform: translate(0, 0); }
+  33% { transform: translate(-2%, 1%); }
+  66% { transform: translate(1%, -2%); }
+  100% { transform: translate(0, 0); }
+}
+
+/* Radial vignette — focus the eye center-frame */
+.vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 55%,
+    rgba(0, 0, 0, 0.55) 100%
+  );
+}
+
+/* The "revenue surface" wire-grid horizon (CSS stand-in for the R3F plane) */
+.revenue-surface {
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 60px 60px;
+  transform: perspective(600px) rotateX(70deg);
+  transform-origin: center bottom;
+  mask-image: linear-gradient(to top, #000 0%, transparent 75%);
+  -webkit-mask-image: linear-gradient(to top, #000 0%, transparent 75%);
+}
+
+/* Kicker — the small-caps mono line above a headline */
+.kicker {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.32em;
+  color: var(--color-muted);
+}
+
+/* Mono wireframe entity label */
+.wire-label {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--color-faint);
+}
+
+/* Serif display headline default */
+.display {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  color: var(--color-fg);
+}
+
+/* Primary blue CTA with bloom */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--color-blue);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+    0 0 24px var(--rzp-blue-glow);
+  transition: background 320ms var(--ease-standard),
+    box-shadow 320ms var(--ease-standard), transform 320ms var(--ease-standard);
+}
+.btn-primary:hover {
+  background: var(--color-blue-bright);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14) inset,
+    0 0 40px var(--rzp-blue-glow);
+  transform: translateY(-1px);
+}
+
+/* Ghost button */
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--glass-border);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  transition: border-color 320ms var(--ease-standard);
+}
+.btn-ghost:hover {
+  border-color: var(--glass-border-hover);
+}
+
+/* Blinking terminal cursor */
+.blink {
+  animation: blink 1.1s steps(1) infinite;
+}
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+/* Accessibility: honor reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .grain { animation: none; }
 }
