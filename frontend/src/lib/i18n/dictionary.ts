@@ -55,6 +55,12 @@ export const dictionary = {
       terminal: "Audit Trail Terminal",
       live: "Live",
       awaiting: "Awaiting webhook event stream",
+      connecting: "Connecting to REX engine…",
+      streamError: "Stream unavailable",
+      streamErrorNote:
+        "Start the REX backend on :8000 to run the live simulation.",
+      recoveryRate: "Recovery Rate",
+      recovered: "Recovered",
     },
     states: {
       ingesting: "Ingesting",
@@ -110,6 +116,12 @@ export const dictionary = {
       terminal: "ऑडिट ट्रेल टर्मिनल",
       live: "लाइव",
       awaiting: "वेबहुक इवेंट स्ट्रीम की प्रतीक्षा",
+      connecting: "REX इंजन से कनेक्ट हो रहा है…",
+      streamError: "स्ट्रीम अनुपलब्ध",
+      streamErrorNote:
+        "लाइव सिमुलेशन चलाने के लिए REX बैकएंड :8000 पर शुरू करें।",
+      recoveryRate: "रिकवरी दर",
+      recovered: "रिकवर किया",
     },
     states: {
       ingesting: "इनजेस्टिंग",
