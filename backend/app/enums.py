@@ -107,3 +107,15 @@ class EscalationStatus(str, Enum):
 
     OPEN = "OPEN"
     RESOLVED = "RESOLVED"
+
+
+class Playbook(str, Enum):
+    """Recovery playbooks the diagnosis layer selects from (per the PRD)."""
+
+    REROUTE_RAIL = "REROUTE_RAIL"                    # C1 in-flight rail switch
+    PREAUTH_LINK = "PREAUTH_LINK"                    # C1 abandoned session link
+    UPI_AUTOPAY_NUDGE = "UPI_AUTOPAY_NUDGE"          # C2 seamless OTP-free nudge
+    NEGOTIATION = "NEGOTIATION"                      # C2 high-ticket negotiation
+    SALARY_CYCLE_SEQUENCER = "SALARY_CYCLE_SEQUENCER"  # C3 defer to salary window
+    MANDATE_REFRESH = "MANDATE_REFRESH"             # C3 broken-token refresh
+    P2P_TRACKER = "P2P_TRACKER"                      # C4 promise-to-pay tracking

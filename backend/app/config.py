@@ -24,6 +24,15 @@ class Settings(BaseSettings):
     razorpay_key_secret: str = ""
     razorpay_webhook_secret: str = ""
 
+    # Gemini (cognitive layer). Model is overridable so the deployment can track
+    # whichever Flash model the API key has access to.
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-3.6-flash"
+
+    # When false, channel adapters simulate dispatch instead of making real
+    # outbound calls. Kept off by default so the batch harness never spams.
+    live_mode: bool = False
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @property
