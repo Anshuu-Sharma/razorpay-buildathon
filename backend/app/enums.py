@@ -59,3 +59,51 @@ class Outcome(str, Enum):
     SUCCESS = "SUCCESS"
     FAILURE = "FAILURE"
     ESCALATED = "ESCALATED"
+
+
+class InterventionChannel(str, Enum):
+    """Outbound channels a recovery action can use."""
+
+    WHATSAPP = "WHATSAPP"
+    VOICE = "VOICE"
+    PAYMENT_LINK = "PAYMENT_LINK"
+
+
+class InterventionAction(str, Enum):
+    """The concrete recovery actions the orchestrator can propose.
+
+    Every one of these must clear the PolicySandbox before it reaches a channel
+    adapter - this enum is the closed set of things the engine is even allowed
+    to attempt.
+    """
+
+    SEND_WHATSAPP = "SEND_WHATSAPP"
+    VOICE_CALL = "VOICE_CALL"
+    OFFER_FEE_WAIVER = "OFFER_FEE_WAIVER"
+    GENERATE_PAYMENT_LINK = "GENERATE_PAYMENT_LINK"
+    RETRY_CHARGE = "RETRY_CHARGE"
+    CANCEL_SUBSCRIPTION = "CANCEL_SUBSCRIPTION"
+
+
+class StoppingRule(str, Enum):
+    """Named, regulatory/compliance stopping rules.
+
+    Each is emitted to the audit trail and counted in the recovery metrics, so a
+    judge can see exactly which rule halted a workflow and how often.
+    """
+
+    NO_DOUBLE_CHARGE = "NO_DOUBLE_CHARGE"              # C1 late settlement
+    CROSS_DEVICE_COMPLETION = "CROSS_DEVICE_COMPLETION"  # C2 completed elsewhere
+    RBI_MAX_RETRIES = "RBI_MAX_RETRIES"                # C3 <=3 auto-debit retries
+    EXPLICIT_CANCEL = "EXPLICIT_CANCEL"                # user asked to cancel plan
+    OPT_OUT = "OPT_OUT"                                # user opted out of contact
+    DISPUTE_FREEZE = "DISPUTE_FREEZE"                  # C4 dispute -> human queue
+    TRAI_QUIET_HOURS = "TRAI_QUIET_HOURS"              # 20:00-09:00 IST no contact
+    VOICE_ATTEMPT_CAP = "VOICE_ATTEMPT_CAP"            # <=2 voice calls / 72h
+
+
+class EscalationStatus(str, Enum):
+    """Lifecycle of a human-handoff ticket."""
+
+    OPEN = "OPEN"
+    RESOLVED = "RESOLVED"
