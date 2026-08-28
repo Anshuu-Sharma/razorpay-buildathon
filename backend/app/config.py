@@ -33,6 +33,14 @@ class Settings(BaseSettings):
     # outbound calls. Kept off by default so the batch harness never spams.
     live_mode: bool = False
 
+    # Twilio WhatsApp (live channel). from_ is the sandbox/business number.
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    twilio_whatsapp_from: str = "whatsapp:+14155238886"  # Twilio sandbox default
+
+    # Vapi voice. Absent -> the voice adapter stays simulated even in live mode.
+    vapi_api_key: str = ""
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @property
