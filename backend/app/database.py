@@ -18,3 +18,16 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def init_db() -> None:
+    """Create tables for all registered models.
+
+    Importing ``app.models`` ensures every model is registered on ``Base``
+    before ``create_all`` runs. This is called explicitly on startup rather
+    than as an import side effect. NOTE: ``create_all`` only creates missing
+    tables; once the schema stabilises, migrations (Alembic) should own it.
+    """
+    import app.models  # noqa: F401  (registers all models on Base.metadata)
+
+    Base.metadata.create_all(bind=engine)
