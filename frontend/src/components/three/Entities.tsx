@@ -1,103 +1,98 @@
 "use client";
 
-import { useMemo, useRef, type RefObject } from "react";
+import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Billboard, Line, Text } from "@react-three/drei";
+import { Html } from "@react-three/drei";
 import * as THREE from "three";
+import { buildShape } from "./particleShapes";
+import { NODES, type NodeDef } from "./nodes";
 
 /**
- * The payments infrastructure: wireframe entities (banks, gateways, servers,
- * ledgers) orbiting the disc, each labelled and tethered to the core by a
- * connector line — the structure that makes the field read as a real system.
+ * The four failure-class entities as glowing particle shapes (gateway cube,
+ * checkout panel, mandate database, receivables tower), placed at the shared
+ * ring positions. Data flow between them is handled by DataStreams.
  */
 
-interface Entity {
-  label: string;
-  angle: number; // radians around the disc
-  radius: number;
-  y: number;
-  size: number;
-}
+const glowVertex = /* glsl */ `
+  uniform float uTime;
+  attribute float aRand;
+  varying float vTw;
+  void main() {
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    gl_Position = projectionMatrix * mv;
+    vTw = 0.7 + 0.3 * sin(uTime * 2.0 + aRand * 6.2831);
+    gl_PointSize = 2.4 * vTw * (300.0 / -mv.z);
+  }
+`;
 
-const ENTITIES: Entity[] = [
-  { label: "PAYMENT GATEWAY", angle: 0.3, radius: 40, y: 7, size: 3.4 },
-  { label: "ACQUIRING BANK", angle: 1.1, radius: 46, y: 2, size: 4.0 },
-  { label: "ISSUING BANK", angle: 2.0, radius: 42, y: 9, size: 3.0 },
-  { label: "UPI SWITCH", angle: 2.8, radius: 38, y: 3, size: 2.6 },
-  { label: "CORE LEDGER", angle: 3.7, radius: 47, y: 6, size: 3.6 },
-  { label: "RISK ENGINE", angle: 4.5, radius: 40, y: 11, size: 2.8 },
-  { label: "SETTLEMENT", angle: 5.2, radius: 44, y: 1, size: 3.2 },
-  { label: "FRAUD DETECTION", angle: 5.9, radius: 39, y: 8, size: 2.4 },
-];
+const glowFragment = /* glsl */ `
+  uniform vec3 uColor;
+  varying float vTw;
+  void main() {
+    vec2 uv = gl_PointCoord - 0.5;
+    float d = length(uv);
+    float core = smoothstep(0.5, 0.0, d);
+    float a = pow(core, 2.0) * (0.7 + vTw * 0.3);
+    if (a < 0.02) discard;
+    gl_FragColor = vec4(uColor + core * 0.25, a);
+  }
+`;
 
-function EntityNode({ entity }: { entity: Entity }) {
-  const pos = useMemo<[number, number, number]>(
-    () => [
-      Math.cos(entity.angle) * entity.radius,
-      entity.y,
-      Math.sin(entity.angle) * entity.radius,
-    ],
-    [entity]
-  );
+function EntityNode({ node, seed }: { node: NodeDef; seed: number }) {
+  const spinRef = useRef<THREE.Group>(null);
+  const matRef = useRef<THREE.ShaderMaterial>(null);
 
-  const edges = useMemo(
-    () => new THREE.EdgesGeometry(new THREE.BoxGeometry(entity.size, entity.size, entity.size)),
-    [entity.size]
-  );
+  const { geometry, uniforms } = useMemo(() => {
+    const positions = buildShape(node.shape, node.scale, seed);
+    const n = positions.length / 3;
+    const rands = new Float32Array(n);
+    for (let i = 0; i < n; i++) rands[i] = ((i * 9301 + 49297) % 233280) / 233280;
 
-  return (
-    <group>
-      {/* connector from core to entity */}
-      <Line
-        points={[[0, 0, 0], pos]}
-        color="#0e3a6e"
-        lineWidth={1}
-        transparent
-        opacity={0.35}
-      />
-
-      {/* wireframe box */}
-      <group position={pos}>
-        <lineSegments>
-          <primitive object={edges} attach="geometry" />
-          <lineBasicMaterial color="#9bd0ff" transparent opacity={0.4} />
-        </lineSegments>
-
-        {/* label */}
-        <Billboard position={[0, entity.size / 2 + 1.6, 0]}>
-          <Text
-            fontSize={0.95}
-            color="#8a8f98"
-            anchorX="center"
-            anchorY="middle"
-            letterSpacing={0.18}
-            outlineWidth={0}
-          >
-            {entity.label}
-          </Text>
-        </Billboard>
-      </group>
-    </group>
-  );
-}
-
-export default function Entities({ progress }: { progress: RefObject<number> }) {
-  const groupRef = useRef<THREE.Group>(null);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute("aRand", new THREE.BufferAttribute(rands, 1));
+    return {
+      geometry: geo,
+      uniforms: {
+        uTime: { value: 0 },
+        uColor: { value: new THREE.Color(node.color) },
+      },
+    };
+  }, [node, seed]);
 
   useFrame((_, delta) => {
-    // entities drift slowly around the core; fade up out of the enter beat
-    if (groupRef.current) {
-      groupRef.current.rotation.y += delta * 0.012;
-      const vis = THREE.MathUtils.smoothstep(progress.current, 0.05, 0.16);
-      groupRef.current.visible = vis > 0.01;
-    }
+    if (matRef.current) matRef.current.uniforms.uTime.value += delta;
+    if (spinRef.current) spinRef.current.rotation.y += delta * 0.15;
   });
 
   return (
-    <group ref={groupRef}>
-      {ENTITIES.map((e) => (
-        <EntityNode key={e.label} entity={e} />
-      ))}
+    <group position={node.pos}>
+      <group ref={spinRef}>
+        <points geometry={geometry} frustumCulled={false}>
+          <shaderMaterial
+            ref={matRef}
+            uniforms={uniforms}
+            vertexShader={glowVertex}
+            fragmentShader={glowFragment}
+            transparent
+            depthWrite={false}
+            blending={THREE.AdditiveBlending}
+          />
+        </points>
+      </group>
+      <Html position={[0, node.scale * 0.95 + 2, 0]} center zIndexRange={[10, 0]}>
+        <div className="scene-label">{node.label}</div>
+      </Html>
     </group>
+  );
+}
+
+export default function Entities() {
+  return (
+    <>
+      {NODES.map((n, i) => (
+        <EntityNode key={n.label} node={n} seed={i * 131 + 17} />
+      ))}
+    </>
   );
 }

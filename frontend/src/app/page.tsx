@@ -5,19 +5,25 @@ import { motion } from "framer-motion";
 import { useLocale } from "@/lib/i18n/LocaleProvider";
 import { FAILURE_CLASSES } from "@/lib/failure-classes";
 import WorldScene from "@/components/three/WorldScene";
+import IntroOverlay from "@/components/IntroOverlay";
 import ScrollRail from "@/components/landing/ScrollRail";
 import Reveal from "@/components/landing/Reveal";
+import { useIntroPhase } from "@/lib/intro";
 
 function Section({
   children,
   className = "",
+  top = false,
 }: {
   children: React.ReactNode;
   className?: string;
+  top?: boolean;
 }) {
   return (
     <section
-      className={`relative flex min-h-screen flex-col items-center justify-center px-6 text-center ${className}`}
+      className={`relative flex min-h-screen flex-col items-center px-6 text-center ${
+        top ? "justify-start pt-28 md:pt-32" : "justify-center"
+      } ${className}`}
     >
       {children}
     </section>
@@ -27,20 +33,21 @@ function Section({
 export default function Landing() {
   const { t, locale } = useLocale();
   const L = t.landing;
+  const entered = useIntroPhase() === "entered";
 
   return (
     <>
       <WorldScene />
-      <ScrollRail />
+      <IntroOverlay />
+      {entered && <ScrollRail />}
 
-      <main className="relative z-10">
-        {/* Beat 1 — Enter */}
+      <main
+        className={`relative z-10 transition-opacity duration-700 ${
+          entered ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
+      >
+        {/* Beat 1 — Enter (the click-to-enter gate is handled by IntroOverlay) */}
         <Section>
-          <Reveal className="mb-6">
-            <span className="kicker inline-flex items-center gap-2">
-              <span aria-hidden>▶</span> {L.enterKicker}
-            </span>
-          </Reveal>
           <Reveal delay={0.1}>
             <h1 className="display mx-auto max-w-4xl text-[clamp(2.75rem,6vw,5.5rem)]">
               {L.enterTitle}
@@ -148,9 +155,9 @@ export default function Landing() {
           </div>
         </Section>
 
-        {/* Beat 8 — Rest & CTA */}
-        <Section>
-          <Reveal className="mb-6">
+        {/* Beat 8 — Rest & CTA (headline pinned to top, disc fills below) */}
+        <Section top>
+          <Reveal className="mb-5">
             <span className="kicker">{L.ctaKicker}</span>
           </Reveal>
           <Reveal delay={0.1}>
@@ -159,7 +166,7 @@ export default function Landing() {
             </h2>
           </Reveal>
           <Reveal delay={0.25}>
-            <Link href="/demo" className="btn-primary mt-12 text-base">
+            <Link href="/demo" className="btn-primary mt-8 text-base">
               {L.cta}
               <span aria-hidden>→</span>
             </Link>

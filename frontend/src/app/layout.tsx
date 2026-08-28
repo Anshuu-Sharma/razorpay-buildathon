@@ -43,7 +43,7 @@ const mukta = Mukta({
 });
 
 export const metadata: Metadata = {
-  title: "Autonomous Revenue Recovery Engine",
+  title: "REX — Revenue Execution Engine",
   description:
     "Bounded, auditable, autonomous — recovering failed payments across the entire network.",
 };
