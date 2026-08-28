@@ -16,7 +16,7 @@ def _make_transaction(**overrides):
     defaults = dict(
         transaction_id="txn_1",
         razorpay_payment_id="pay_1",
-        failure_class=FailureClass.SALARY_CYCLE,
+        failure_class=FailureClass.SUBSCRIPTION_MANDATE,
         current_state=TransactionLifecycleState.PENDING,
         merchant_id="merch_1",
         customer_contact="+919999999999",

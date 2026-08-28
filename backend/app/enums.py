@@ -12,13 +12,14 @@ class FailureClass(IntEnum):
     """The four payment-failure classes the recovery engine routes on.
 
     Kept as an ``IntEnum`` so the numeric contract from the PRD (classes 1-4)
-    is preserved on the wire while still being validated.
+    is preserved on the wire while still being validated. Names mirror the PRD's
+    locked taxonomy so the code reads the way the product spec does.
     """
 
-    NETWORK_DEGRADATION = 1   # Class 1 - issuer/node degradation, needs re-routing
-    INSUFFICIENT_FUNDS = 2    # Class 2 - hard decline, retry with backoff
-    SALARY_CYCLE = 3          # Class 3 - timing failure, wait for salary credit
-    TECHNICAL_DECLINE = 4     # Class 4 - transient technical error
+    REALTIME_DEGRADATION = 1   # Class 1 - infra/switch timeout, needs re-routing
+    CHECKOUT_ABANDONMENT = 2   # Class 2 - high-intent drop-off at the payment modal
+    SUBSCRIPTION_MANDATE = 3   # Class 3 - e-mandate/subscription churn (salary cycle)
+    B2B_RECEIVABLES = 4        # Class 4 - overdue invoice / promise-to-pay chasing
 
 
 class TransactionLifecycleState(str, Enum):
@@ -28,9 +29,10 @@ class TransactionLifecycleState(str, Enum):
     DIAGNOSING = "DIAGNOSING"
     WAITING = "WAITING"          # Class 3 salary-cycle pause
     INTERVENING = "INTERVENING"
-    RECOVERED = "RECOVERED"
-    ESCALATED = "ESCALATED"
-    FAILED = "FAILED"
+    RECOVERED = "RECOVERED"     # money captured - loop closed
+    ESCALATED = "ESCALATED"     # routed to the human queue
+    CANCELLED = "CANCELLED"     # compliant stop: opt-out / stopping-rule termination
+    FAILED = "FAILED"           # retries exhausted without recovery
 
 
 class NodeName(str, Enum):
