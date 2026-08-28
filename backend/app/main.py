@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import init_db
-from app.routers import health, webhooks
+from app.routers import health, metrics, webhooks
 
 
 @asynccontextmanager
@@ -35,6 +35,7 @@ app.add_middleware(
 
 app.include_router(health.router, prefix="/api/v1")
 app.include_router(webhooks.router, prefix="/api/v1")
+app.include_router(metrics.router, prefix="/api/v1")
 
 
 @app.get("/")
