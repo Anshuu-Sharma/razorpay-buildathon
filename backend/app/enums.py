@@ -42,6 +42,7 @@ class NodeName(str, Enum):
     DIAGNOSE = "DIAGNOSE"
     WAIT = "WAIT"
     EXECUTE_INTERVENTION = "EXECUTE_INTERVENTION"
+    RECONCILE = "RECONCILE"
 
 
 class ActionType(str, Enum):

@@ -43,6 +43,9 @@ class Diagnosis:
     user_intent_detected: str | None = None
     extracted_p2p_date: str | None = None  # ISO-8601, or None
     confidence: float = 0.0
+    # For negotiation playbooks the model may propose a concession; it is advisory
+    # only and must clear the PolicySandbox before it can be applied.
+    proposed_discount_pct: float | None = None
 
 
 class _DiagnosisPayload(BaseModel):
@@ -53,6 +56,7 @@ class _DiagnosisPayload(BaseModel):
     user_intent_detected: str | None = None
     extracted_p2p_date: str | None = None
     confidence: float = 0.0
+    proposed_discount_pct: float | None = None
 
 
 class DiagnosisEngine:
@@ -83,6 +87,7 @@ class DiagnosisEngine:
             user_intent_detected=payload.user_intent_detected,
             extracted_p2p_date=payload.extracted_p2p_date,
             confidence=payload.confidence,
+            proposed_discount_pct=payload.proposed_discount_pct,
         )
 
     def _coerce_playbook(self, value: str, failure_class: FailureClass) -> Playbook:
