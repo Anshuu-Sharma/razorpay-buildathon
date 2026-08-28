@@ -17,7 +17,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="AI Revenue Recovery Engine",
+    title="REX — Revenue Execution Engine",
     description="FastAPI backend orchestrating LLM-driven payment recovery workflows.",
     version="0.1.0",
     lifespan=lifespan,
@@ -40,4 +40,4 @@ app.include_router(metrics.router, prefix="/api/v1")
 
 @app.get("/")
 def root():
-    return {"message": "AI Revenue Recovery Engine API is running. Check /docs for Swagger UI."}
+    return {"message": "REX (Revenue Execution Engine) API is running. Check /docs for Swagger UI."}

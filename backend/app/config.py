@@ -9,7 +9,7 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent
 
 
 class Settings(BaseSettings):
-    app_name: str = "AI Revenue Recovery Engine"
+    app_name: str = "REX — Revenue Execution Engine"
     database_url: str = f"sqlite:///{BACKEND_DIR / 'recovery_engine.db'}"
 
     # Comma-separated list of origins allowed by CORS. Wildcard is intentionally
