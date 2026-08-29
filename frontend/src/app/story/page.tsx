@@ -1,8 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import Link from "next/link";
 import StoryScene from "@/components/story/StoryScene";
+
+// Runs before paint on the client (falls back to useEffect on the server so SSR
+// doesn't warn), so we can pin scroll to the top before the page is ever shown.
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 /**
  * Nayantara's story — the warm, light "problem" half of the pitch. The class
@@ -11,25 +16,22 @@ import StoryScene from "@/components/story/StoryScene";
  * vignette + recolour body) and carry the tokens on the wrapper for SSR.
  */
 export default function StoryPage() {
+  // Pin to the top BEFORE the first paint, so the story never shows a late beat
+  // even for a frame when navigating in from a scrolled-down landing page.
+  useIsomorphicLayoutEffect(() => {
+    const prevRestore =
+      "scrollRestoration" in history ? history.scrollRestoration : undefined;
+    if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+    window.scrollTo(0, 0);
+    return () => {
+      if (prevRestore !== undefined) history.scrollRestoration = prevRestore;
+    };
+  }, []);
+
   useEffect(() => {
     const el = document.documentElement;
     el.classList.add("theme-light");
-
-    // Start the story at the top, instantly. Prevent the browser from restoring
-    // the landing page's scroll offset onto this (very tall) route, and disable
-    // smooth scrolling so the reset doesn't animate as an auto-scroll.
-    const prevBehavior = el.style.scrollBehavior;
-    const prevRestore =
-      "scrollRestoration" in history ? history.scrollRestoration : undefined;
-    el.style.scrollBehavior = "auto";
-    if ("scrollRestoration" in history) history.scrollRestoration = "manual";
-    window.scrollTo(0, 0);
-
-    return () => {
-      el.classList.remove("theme-light");
-      el.style.scrollBehavior = prevBehavior;
-      if (prevRestore !== undefined) history.scrollRestoration = prevRestore;
-    };
+    return () => el.classList.remove("theme-light");
   }, []);
 
   return (

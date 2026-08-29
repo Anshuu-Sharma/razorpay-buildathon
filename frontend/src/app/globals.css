@@ -53,7 +53,10 @@
 }
 
 html {
-  scroll-behavior: smooth;
+  /* No smooth scroll: it made route changes animate-scroll from the previous
+     page's offset (e.g. landing CTA -> story started at a late beat and slid up).
+     Natural wheel/trackpad scrolling is unaffected. */
+  scroll-behavior: auto;
 }
 
 body {
