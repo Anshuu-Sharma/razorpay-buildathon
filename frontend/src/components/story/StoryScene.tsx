@@ -14,8 +14,7 @@ import Nayantara from "./Nayantara";
 import SpeechCloud from "./SpeechCloud";
 import StoryClassCard from "./StoryClassCard";
 
-// Number of full weaves the doodle makes across the whole story.
-const WEAVES = 3.5;
+const AMP = 15; // horizontal weave amplitude (vw)
 
 /**
  * Scroll-linked narrative. Nayantara's horizontal position is a continuous
@@ -48,30 +47,33 @@ export default function StoryScene() {
     }
   });
 
-  // Continuous motion driven by scroll — the core of the "experience".
-  const doodleX = useTransform(
-    scrollYProgress,
-    (p) => `${Math.sin(p * Math.PI * WEAVES) * 22}vw`
-  );
+  // Continuous, scroll-linked weave that lands on the side OPPOSITE each beat's
+  // text at every beat centre (text alternates even=right / odd=left), so the
+  // doodle and its words never crowd the same side.
+  const n = STORY.length;
+  const doodleX = useTransform(scrollYProgress, (p) => {
+    const phase = p * n; // 0 → n across the story
+    return `${-AMP * Math.cos(Math.PI * (phase - 0.5))}vw`;
+  });
   const doodleY = useTransform(
     scrollYProgress,
-    (p) => `${Math.cos(p * Math.PI * WEAVES * 2) * -1.5}vh`
+    (p) => `${Math.cos(p * Math.PI * n) * -1.2}vh`
   );
-  const doodleRot = useTransform(
-    scrollYProgress,
-    (p) => Math.sin(p * Math.PI * WEAVES) * 5
+  const doodleRot = useTransform(scrollYProgress, (p) =>
+    Math.cos(Math.PI * (p * n - 0.5)) * 3
   );
   const blobScale = useTransform(
     scrollYProgress,
-    (p) => 1 + Math.sin(p * Math.PI * WEAVES * 2) * 0.06
+    (p) => 1 + Math.abs(Math.sin(p * Math.PI * n)) * 0.05
   );
 
-  // A vertical sine path (in a 100×1200 box, stretched to the section) that the
-  // doodle traces; it draws in as you scroll via pathLength.
+  // The centre curve the doodle traces; drawn in as you scroll via pathLength.
   const curveD = useMemo(() => {
     let d = "M 50 0";
+    const steps = STORY.length;
     for (let t = 0; t <= 1200; t += 15) {
-      const x = 50 + Math.sin((t / 1200) * Math.PI * WEAVES) * 34;
+      const phase = (t / 1200) * steps;
+      const x = 50 - 30 * Math.cos(Math.PI * (phase - 0.5));
       d += ` L ${x.toFixed(1)} ${t}`;
     }
     return d;
@@ -100,7 +102,7 @@ export default function StoryScene() {
       <div className="pointer-events-none sticky top-0 z-10 flex h-screen items-center justify-center">
         <motion.div
           style={{ x: doodleX, y: doodleY, rotate: doodleRot }}
-          className="relative h-[46vh] w-[42vw] max-w-md md:h-[54vh]"
+          className="relative h-[52vh] w-[40vw] max-w-[380px] md:h-[60vh]"
         >
           <motion.div
             style={{ scale: blobScale }}
@@ -130,8 +132,8 @@ export default function StoryScene() {
               <div
                 className={
                   textOnRight
-                    ? "ml-auto w-full max-w-md pr-6 md:pr-[5vw]"
-                    : "mr-auto w-full max-w-md pl-6 md:pl-[5vw]"
+                    ? "w-full max-w-md px-6 md:ml-[52%] md:max-w-sm md:px-0 md:pr-[3vw]"
+                    : "w-full max-w-md px-6 md:mr-[52%] md:max-w-sm md:px-0 md:pl-[3vw]"
                 }
               >
                 <SpeechCloud lines={b.lines} />

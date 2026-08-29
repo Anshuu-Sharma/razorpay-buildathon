@@ -66,7 +66,7 @@ export default function Nayantara({ pose }: { pose: Pose }) {
     <img
       src={`/nayantara/${FILE[pose]}`}
       alt={`Nayantara — ${pose}`}
-      className="h-full w-auto select-none"
+      className="h-full w-full select-none object-contain object-bottom"
       draggable={false}
       onError={() => setBroken(true)}
     />
