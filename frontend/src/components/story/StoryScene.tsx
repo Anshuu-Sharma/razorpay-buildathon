@@ -36,10 +36,13 @@ export default function StoryScene() {
   // Drive the active beat (and thus the pose) straight off scroll progress, so
   // the doodle swaps reliably as you scroll in either direction. Runs in a
   // MotionValue event callback, not an effect body.
+  // Pose keys to each beat's centre and flips as the beat ENTERS the middle
+  // (round, not floor), so it swaps when the doodle reaches the text box rather
+  // than at the end of it.
   useMotionValueEvent(scrollYProgress, "change", (p) => {
     const idx = Math.max(
       0,
-      Math.min(STORY.length - 1, Math.floor(p * STORY.length))
+      Math.min(STORY.length - 1, Math.round(p * (STORY.length - 1)))
     );
     if (idx !== activeRef.current) {
       activeRef.current = idx;
@@ -50,30 +53,33 @@ export default function StoryScene() {
   // Continuous, scroll-linked weave that lands on the side OPPOSITE each beat's
   // text at every beat centre (text alternates even=right / odd=left), so the
   // doodle and its words never crowd the same side.
-  const n = STORY.length;
-  const doodleX = useTransform(scrollYProgress, (p) => {
-    const phase = p * n; // 0 → n across the story
-    return `${-AMP * Math.cos(Math.PI * (phase - 0.5))}vw`;
-  });
+  // Beat centres fall at p = k / segments, so aligning the weave to `segments`
+  // puts the doodle at its extreme (opposite that beat's text) exactly when the
+  // beat is centred — and on the left already at the very top (p = 0).
+  const segments = STORY.length - 1;
+  const doodleX = useTransform(
+    scrollYProgress,
+    (p) => `${-AMP * Math.cos(Math.PI * p * segments)}vw`
+  );
   const doodleY = useTransform(
     scrollYProgress,
-    (p) => `${Math.cos(p * Math.PI * n) * -1.2}vh`
+    (p) => `${Math.cos(2 * Math.PI * p * segments) * -1.2}vh`
   );
-  const doodleRot = useTransform(scrollYProgress, (p) =>
-    Math.cos(Math.PI * (p * n - 0.5)) * 3
+  const doodleRot = useTransform(
+    scrollYProgress,
+    (p) => Math.cos(Math.PI * p * segments) * 3
   );
   const blobScale = useTransform(
     scrollYProgress,
-    (p) => 1 + Math.abs(Math.sin(p * Math.PI * n)) * 0.05
+    (p) => 1 + Math.abs(Math.sin(Math.PI * p * segments)) * 0.05
   );
 
   // The centre curve the doodle traces; drawn in as you scroll via pathLength.
   const curveD = useMemo(() => {
+    const segs = STORY.length - 1;
     let d = "M 50 0";
-    const steps = STORY.length;
     for (let t = 0; t <= 1200; t += 15) {
-      const phase = (t / 1200) * steps;
-      const x = 50 - 30 * Math.cos(Math.PI * (phase - 0.5));
+      const x = 50 - 30 * Math.cos(Math.PI * (t / 1200) * segs);
       d += ` L ${x.toFixed(1)} ${t}`;
     }
     return d;
