@@ -3,6 +3,7 @@ import {
   Playfair_Display,
   Hanken_Grotesk,
   Fira_Code,
+  Fraunces,
   Tiro_Devanagari_Hindi,
   Mukta,
 } from "next/font/google";
@@ -24,6 +25,13 @@ const hanken = Hanken_Grotesk({
 
 const firaCode = Fira_Code({
   variable: "--font-fira-code",
+  subsets: ["latin"],
+  display: "swap",
+});
+
+// Warm, characterful serif for the light "story" theme (Nayantara's world).
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
   subsets: ["latin"],
   display: "swap",
 });
@@ -54,7 +62,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${playfair.variable} ${hanken.variable} ${firaCode.variable} ${tiroDeva.variable} ${mukta.variable}`}
+      className={`${playfair.variable} ${hanken.variable} ${firaCode.variable} ${fraunces.variable} ${tiroDeva.variable} ${mukta.variable}`}
     >
       <body className="min-h-screen bg-void text-fg">
         <LocaleProvider>

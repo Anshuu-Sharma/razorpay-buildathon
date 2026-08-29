@@ -166,7 +166,7 @@ export default function Landing() {
             </h2>
           </Reveal>
           <Reveal delay={0.25}>
-            <Link href="/demo" className="btn-primary mt-8 text-base">
+            <Link href="/story" className="btn-primary mt-8 text-base">
               {L.cta}
               <span aria-hidden>→</span>
             </Link>

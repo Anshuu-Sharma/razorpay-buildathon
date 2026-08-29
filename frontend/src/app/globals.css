@@ -248,3 +248,83 @@ body {
   }
   .grain { animation: none; }
 }
+
+/* ============================================================
+   Story theme — Nayantara's world (Claude-style warm light)
+   Applied to <html> only on the /story route, so the dark app
+   is untouched. Re-mapping the semantic tokens recolours the
+   whole route (navbar included) in one move.
+   ============================================================ */
+/* Tokens on the class itself so the story wrapper gets them at SSR (no flash);
+   overlay-hiding + body background are tied to <html> (added on mount). */
+.theme-light {
+  --color-void: #f5f4ef; /* warm ivory canvas */
+  --color-ink: #efece3;
+  --color-fg: #23201c; /* warm charcoal */
+  --color-muted: #6b6862;
+  --color-faint: #a8a399;
+  --color-clay: #cc785c; /* Claude clay accent */
+  --color-clay-soft: #e9d9cf;
+  --serif-story: var(--font-fraunces), Georgia, serif;
+}
+html.theme-light body {
+  background-color: var(--color-void);
+  color: var(--color-fg);
+}
+/* Kill the dark-mode atmosphere on the light route. */
+html.theme-light .grain,
+html.theme-light .vignette {
+  display: none;
+}
+/* Custom scrollbar for the light route. */
+html.theme-light ::-webkit-scrollbar-track { background: #ece9e0; }
+html.theme-light ::-webkit-scrollbar-thumb { background: #d8d2c6; }
+html.theme-light ::selection { background: var(--color-clay); color: #fff; }
+
+/* Fraunces display headline for the story. */
+.story-display {
+  font-family: var(--serif-story);
+  font-weight: 500;
+  line-height: 1.03;
+  letter-spacing: -0.015em;
+  color: var(--color-fg);
+}
+.story-kicker {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  color: var(--color-clay);
+}
+
+/* Hand-drawn speech cloud with a little tail. */
+.speech-cloud {
+  position: relative;
+  background: #fffdf8;
+  border: 1.5px solid #e6e1d6;
+  border-radius: 1.4rem;
+  box-shadow: 0 10px 30px -12px rgba(60, 50, 40, 0.25);
+}
+.speech-cloud::after {
+  content: "";
+  position: absolute;
+  left: 2.2rem;
+  bottom: -0.7rem;
+  width: 1.2rem;
+  height: 1.2rem;
+  background: #fffdf8;
+  border-right: 1.5px solid #e6e1d6;
+  border-bottom: 1.5px solid #e6e1d6;
+  transform: rotate(45deg);
+}
+
+/* Soft blob behind the doodle (echoes the reference art). */
+.doodle-blob {
+  background: radial-gradient(
+    circle at 50% 45%,
+    var(--color-clay-soft) 0%,
+    rgba(233, 217, 207, 0.35) 45%,
+    transparent 70%
+  );
+  filter: blur(2px);
+}
