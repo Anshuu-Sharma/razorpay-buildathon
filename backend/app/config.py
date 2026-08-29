@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     # whichever Flash model the API key has access to.
     gemini_api_key: str = ""
     gemini_model: str = "gemini-3.6-flash"
+    # Message drafting is high-volume and low-stakes, so it uses the cheapest
+    # Flash-Lite tier. Overridable; drafting degrades to a template if the model
+    # is unavailable, so an unknown name never breaks the demo.
+    gemini_draft_model: str = "gemini-flash-lite-latest"
 
     # When false, channel adapters simulate dispatch instead of making real
     # outbound calls. Kept off by default so the batch harness never spams.

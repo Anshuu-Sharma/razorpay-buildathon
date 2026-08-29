@@ -13,11 +13,19 @@ Customer contact is PII: it is stored encrypted and only ever leaves here masked
 from collections import defaultdict
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.enums import ActionType, NodeName
-from app.models import AuditTrail, TransactionState
+from app.enums import (
+    ActionType,
+    MessageDirection,
+    MessageSender,
+    MessageStatus,
+    NodeName,
+)
+from app.models import AuditTrail, CallSession, CallTurn, Message, TransactionState
+from app.services.drafting import draft_message
 
 router = APIRouter(tags=["transactions"])
 
@@ -170,6 +178,108 @@ def get_transaction(transaction_id: str, db: Session = Depends(get_db)) -> dict:
             for a in trail
         ],
     }
+
+
+def _serialize_message(m: Message) -> dict:
+    return {
+        "id": m.id,
+        "channel": m.channel.value,
+        "direction": m.direction.value,
+        "sender": m.sender.value,
+        "body": m.body,
+        "status": m.status.value,
+        "seq": m.seq,
+        "meta": m.meta_json,
+        "created_at": m.created_at.isoformat(),
+    }
+
+
+def _require_txn(db: Session, transaction_id: str) -> TransactionState:
+    txn = db.query(TransactionState).filter_by(transaction_id=transaction_id).one_or_none()
+    if txn is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
+    return txn
+
+
+@router.get("/transactions/{transaction_id}/conversation")
+def get_conversation(transaction_id: str, db: Session = Depends(get_db)) -> dict:
+    _require_txn(db, transaction_id)
+    messages = (
+        db.query(Message).filter_by(transaction_id=transaction_id).order_by(Message.seq).all()
+    )
+    session = (
+        db.query(CallSession)
+        .filter_by(transaction_id=transaction_id)
+        .order_by(CallSession.id.desc())
+        .first()
+    )
+    call = None
+    if session is not None:
+        turns = (
+            db.query(CallTurn).filter_by(call_session_id=session.id).order_by(CallTurn.seq).all()
+        )
+        call = {
+            "id": session.id,
+            "status": session.status.value,
+            "duration_sec": session.duration_sec,
+            "outcome": session.outcome,
+            "provider": session.provider,
+            "turns": [
+                {
+                    "speaker": t.speaker.value,
+                    "text": t.text,
+                    "seq": t.seq,
+                    "at_offset_sec": t.at_offset_sec,
+                }
+                for t in turns
+            ],
+        }
+    return {"messages": [_serialize_message(m) for m in messages], "call": call}
+
+
+class SendMessageBody(BaseModel):
+    body: str = Field(min_length=1, max_length=2000)
+    ai_drafted: bool = False
+
+
+@router.post("/transactions/{transaction_id}/messages", status_code=status.HTTP_201_CREATED)
+def send_message(
+    transaction_id: str, payload: SendMessageBody, db: Session = Depends(get_db)
+) -> dict:
+    _require_txn(db, transaction_id)
+    last = (
+        db.query(Message)
+        .filter_by(transaction_id=transaction_id)
+        .order_by(Message.seq.desc())
+        .first()
+    )
+    next_seq = (last.seq + 1) if last else 0
+    msg = Message(
+        transaction_id=transaction_id,
+        direction=MessageDirection.OUTBOUND,
+        sender=MessageSender.AGENT,
+        body=payload.body,
+        status=MessageStatus.SENT,
+        seq=next_seq,
+        meta_json={"manual": True, "ai_drafted": payload.ai_drafted},
+    )
+    db.add(msg)
+    db.commit()
+    db.refresh(msg)
+    return _serialize_message(msg)
+
+
+class DraftBody(BaseModel):
+    prompt: str = Field(min_length=1, max_length=500)
+
+
+@router.post("/transactions/{transaction_id}/messages/draft")
+def draft(transaction_id: str, payload: DraftBody, db: Session = Depends(get_db)) -> dict:
+    try:
+        text = draft_message(db, transaction_id, payload.prompt)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
+    return {"draft": text}
 
 
 @router.get("/audit")

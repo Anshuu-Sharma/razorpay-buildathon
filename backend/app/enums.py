@@ -110,6 +110,45 @@ class EscalationStatus(str, Enum):
     RESOLVED = "RESOLVED"
 
 
+class MessageDirection(str, Enum):
+    """Whether a conversation message left the engine or arrived from the customer."""
+
+    OUTBOUND = "OUTBOUND"
+    INBOUND = "INBOUND"
+
+
+class MessageSender(str, Enum):
+    """Who authored a message in the thread."""
+
+    AGENT = "AGENT"        # REX (autonomous or operator-composed)
+    CUSTOMER = "CUSTOMER"
+    SYSTEM = "SYSTEM"      # system notes (e.g. "payment captured")
+
+
+class MessageStatus(str, Enum):
+    """WhatsApp-style delivery state of an outbound message."""
+
+    SENT = "SENT"
+    DELIVERED = "DELIVERED"
+    READ = "READ"
+
+
+class CallStatus(str, Enum):
+    """Lifecycle of a voice call session."""
+
+    RINGING = "RINGING"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+    NO_ANSWER = "NO_ANSWER"
+
+
+class CallSpeaker(str, Enum):
+    """Who is speaking in a call transcript turn."""
+
+    AGENT = "AGENT"
+    CUSTOMER = "CUSTOMER"
+
+
 class Playbook(str, Enum):
     """Recovery playbooks the diagnosis layer selects from (per the PRD)."""
 

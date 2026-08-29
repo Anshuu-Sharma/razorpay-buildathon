@@ -18,10 +18,26 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Literal
 
-from app.enums import FailureClass, TransactionLifecycleState
-from app.models import AuditTrail, EscalationQueue, ProcessedEvent, TransactionState
+from app.enums import (
+    FailureClass,
+    MessageDirection,
+    MessageSender,
+    MessageStatus,
+    TransactionLifecycleState,
+)
+from app.models import (
+    AuditTrail,
+    CallSession,
+    CallTurn,
+    EscalationQueue,
+    Message,
+    ProcessedEvent,
+    TransactionState,
+)
 from app.orchestrator.graph import OrchestratorDeps, build_recovery_graph
+from app.services.conversations import build_thread, persona_for
 from app.services.diagnosis import Diagnosis, _DEFAULT_PLAYBOOK
+from app.services.nlp import extract_p2p_date
 from app.services.policy_sandbox import PolicySandbox
 from app.utils import utcnow
 
@@ -146,13 +162,25 @@ def _offline_deps(db) -> OrchestratorDeps:
     )
 
 
+def _next_salary_window(today: date) -> str:
+    """The next salary-credit date (the 1st of the applicable month)."""
+    if today.day <= 5:
+        return today.replace(day=1).isoformat()
+    year = today.year + (today.month == 12)
+    month = 1 if today.month == 12 else today.month + 1
+    return date(year, month, 1).isoformat()
+
+
 def _amount_for(base: int, index: int) -> int:
     """Deterministic jitter so amounts vary without randomness."""
     return int(base * (0.85 + 0.03 * (index % 11)))
 
 
 def _clear(db) -> None:
-    # Order matters: audit + escalation rows reference transactions.
+    # Order matters: child rows reference transactions / call sessions.
+    db.query(CallTurn).delete()
+    db.query(CallSession).delete()
+    db.query(Message).delete()
     db.query(AuditTrail).delete()
     db.query(EscalationQueue).delete()
     db.query(ProcessedEvent).delete()
@@ -254,6 +282,85 @@ def _seed_case(db, graph, item: ScenarioSpec, index: int) -> None:
         state["user_message"] = "please stop contacting me, band karo."
 
     graph.invoke(state)
+    _seed_conversation(db, txn, int(fc), item.outcome, index)
+
+
+def _seed_conversation(db, txn: TransactionState, failure_class: int, outcome: str, index: int) -> None:
+    """Materialise the visible WhatsApp thread (+ call) for a recovery case.
+
+    The customer's words are scripted, but the B2B Promise-to-Pay date is
+    extracted from the reply by the real Hinglish resolver and written back onto
+    the transaction — the reactive mechanic, driven by the actual reply text.
+    """
+    meta = txn.metadata_json or {}
+    persona = persona_for(index)
+    thread = build_thread(
+        failure_class=failure_class,
+        outcome=outcome,
+        name=(meta.get("customer_name") or "there").split()[0],
+        amount_inr=txn.amount_minor / 100,
+        persona=persona,
+        payment_link=f"rzp.io/i/{txn.transaction_id[-6:]}",
+        invoice_no=f"INV-{2600 + index}",
+        salary_date=_next_salary_window(date.today()),
+    )
+
+    seq = 0
+    for beat in thread.messages:
+        db.add(Message(
+            transaction_id=txn.transaction_id,
+            direction=beat.direction,
+            sender=beat.sender,
+            body=beat.body,
+            status=beat.status,
+            seq=seq,
+            meta_json=beat.meta,
+        ))
+        seq += 1
+
+    # B2B reactive path: extract the real P2P date from the customer's reply and
+    # append the agent's dated confirmation + a hold note; record it on the txn.
+    if thread.p2p_phrase:
+        p2p_date = extract_p2p_date(thread.p2p_phrase, today=date.today())
+        if p2p_date:
+            txn.metadata_json = {**meta, "p2p_date": p2p_date}
+            confirmations = [
+                (MessageSender.AGENT, f"Noted — we'll expect payment by {p2p_date}. Thank you! I'll hold reminders until then.", {"p2p_date": p2p_date}),
+                (MessageSender.SYSTEM, f"Dunning paused until {p2p_date} (WAITING_FOR_P2P).", None),
+                (MessageSender.SYSTEM, f"Payment received on {p2p_date} ✓", None),
+            ]
+            for sender, body, mj in confirmations:
+                db.add(Message(
+                    transaction_id=txn.transaction_id,
+                    direction=MessageDirection.OUTBOUND,
+                    sender=sender,
+                    body=body,
+                    status=MessageStatus.READ,
+                    seq=seq,
+                    meta_json=mj,
+                ))
+                seq += 1
+
+    if thread.call:
+        cb = thread.call
+        session = CallSession(
+            transaction_id=txn.transaction_id,
+            status=cb.status,
+            duration_sec=cb.duration_sec,
+            outcome=cb.outcome,
+        )
+        db.add(session)
+        db.flush()  # need session.id for the turns
+        for turn in cb.turns:
+            db.add(CallTurn(
+                call_session_id=session.id,
+                speaker=turn.speaker,
+                text=turn.text,
+                seq=turn.at_offset_sec,  # monotonic; offset doubles as order
+                at_offset_sec=turn.at_offset_sec,
+            ))
+
+    db.commit()
 
 
 def _spread_timestamps(db, now: datetime) -> None:

@@ -1,0 +1,166 @@
+"""Deterministic conversation scripts — the visible recovery, per customer.
+
+Each transaction gets a WhatsApp thread (and, where voice is used, a call
+transcript) built from templates keyed by (failure class × outcome × persona).
+The customer's words are scripted, as any demo must script the counterparty; the
+engine's decisions (stopping rules, the P2P-date extraction that drives the C4
+hold) run through real code in the seeder, off the customer's actual reply text.
+
+`build_thread` is pure and offline: it returns beats, and the seeder materialises
+them into Message/Call rows (and, for B2B, runs the real Hinglish P2P extractor
+on the returned reply phrase).
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+from app.enums import (
+    CallSpeaker,
+    CallStatus,
+    MessageDirection,
+    MessageSender,
+    MessageStatus,
+)
+
+AGENT = MessageSender.AGENT
+CUSTOMER = MessageSender.CUSTOMER
+SYSTEM = MessageSender.SYSTEM
+OUT = MessageDirection.OUTBOUND
+IN = MessageDirection.INBOUND
+
+
+@dataclass
+class MsgBeat:
+    direction: MessageDirection
+    sender: MessageSender
+    body: str
+    status: MessageStatus = MessageStatus.READ
+    meta: dict | None = None
+
+
+@dataclass
+class CallTurnBeat:
+    speaker: CallSpeaker
+    text: str
+    at_offset_sec: int
+
+
+@dataclass
+class CallBeat:
+    status: CallStatus
+    duration_sec: int
+    outcome: str
+    turns: list[CallTurnBeat]
+
+
+@dataclass
+class Thread:
+    messages: list[MsgBeat] = field(default_factory=list)
+    call: CallBeat | None = None
+    # For B2B: the customer's Hinglish reply, run through the real P2P extractor
+    # by the seeder (which then appends the agent's dated confirmation).
+    p2p_phrase: str | None = None
+
+
+# Per-customer flavour so no two threads read identically. Indexed by customer.
+PERSONAS = [
+    {"ok": "Done, thanks!", "p2p": "5 tarikh ko kar denge", "greet": "ji"},
+    {"ok": "Paid just now ✅", "p2p": "agle hafte tak clear kar dunga", "greet": "haan"},
+    {"ok": "ok completed", "p2p": "parso pakka payment ho jayega", "greet": "ji bilkul"},
+    {"ok": "sorted, cheers", "p2p": "3 din mein transfer kar denge", "greet": "hello"},
+    {"ok": "done ✔️", "p2p": "kal subah kar dunga", "greet": "namaste"},
+    {"ok": "thik hai, ho gaya", "p2p": "10 tareekh tak account clear kar denge", "greet": "ji"},
+]
+
+
+def persona_for(index: int) -> dict:
+    return PERSONAS[index % len(PERSONAS)]
+
+
+def build_thread(
+    *,
+    failure_class: int,
+    outcome: str,
+    name: str,
+    amount_inr: float,
+    persona: dict,
+    payment_link: str,
+    invoice_no: str,
+    salary_date: str,
+) -> Thread:
+    rupees = f"₹{int(amount_inr):,}"
+
+    if failure_class == 1:  # Real-time degradation
+        t = Thread(messages=[
+            MsgBeat(OUT, AGENT,
+                    f"Namaste {name}, we hit a brief technical glitch on our side while processing your {rupees} payment — nothing wrong on your end. Here's a secure 1-tap link to finish, no OTP needed: {payment_link}",
+                    meta={"payment_link": payment_link}),
+        ])
+        if outcome == "recovered":
+            t.messages += [
+                MsgBeat(IN, CUSTOMER, persona["ok"]),
+                MsgBeat(OUT, SYSTEM, f"Payment of {rupees} captured on the fallback rail ✓"),
+            ]
+        return t
+
+    if failure_class == 2:  # Checkout abandonment
+        t = Thread(messages=[
+            MsgBeat(OUT, AGENT,
+                    f"Hi {name}! Looks like your {rupees} checkout didn't go through at the OTP step. Skip the friction — pay in 1 tap via UPI Autopay: {payment_link}",
+                    meta={"payment_link": payment_link}),
+        ])
+        if outcome == "recovered":
+            t.messages += [
+                MsgBeat(IN, CUSTOMER, persona["ok"]),
+                MsgBeat(OUT, SYSTEM, f"Payment of {rupees} captured via UPI Autopay ✓"),
+            ]
+        elif outcome == "cancelled_optout":
+            t.messages += [
+                MsgBeat(IN, CUSTOMER, "please stop messaging me, band karo"),
+                MsgBeat(OUT, SYSTEM, "Opt-out detected — all further contact stopped (OPT_OUT)."),
+            ]
+        return t
+
+    if failure_class == 3:  # Subscription & mandate
+        t = Thread(messages=[
+            MsgBeat(OUT, AGENT,
+                    f"Hi {name}, your auto-debit of {rupees} didn't go through — looks like a low balance before your salary date. No worries, we'll retry around {salary_date}."),
+        ])
+        if outcome == "recovered":
+            t.messages += [
+                MsgBeat(IN, CUSTOMER, persona["ok"]),
+                MsgBeat(OUT, SYSTEM, f"Retry on {salary_date} succeeded — {rupees} captured ✓"),
+            ]
+            # Mandate-refresh voice call as the exemplar transcript.
+            t.call = CallBeat(
+                status=CallStatus.COMPLETED, duration_sec=38, outcome="mandate_refreshed",
+                turns=[
+                    CallTurnBeat(CallSpeaker.AGENT, f"Namaste {name} {persona['greet']}, main REX se bol raha hoon. Aapka auto-pay mandate refresh karna tha, ek chhota sa ₹2 test authorization bhej rahe hain.", 0),
+                    CallTurnBeat(CallSpeaker.CUSTOMER, "Haan theek hai, bhej do.", 6),
+                    CallTurnBeat(CallSpeaker.AGENT, "Ho gaya, mandate active hai. Salary date pe {rupees} apne aap cut ho jayega.".replace("{rupees}", rupees), 12),
+                    CallTurnBeat(CallSpeaker.CUSTOMER, "Perfect, dhanyavaad.", 20),
+                ],
+            )
+        elif outcome == "cancelled_rbi":
+            t.messages += [
+                MsgBeat(OUT, SYSTEM, "3 auto-debit retries reached — stopped per RBI cap (RBI_MAX_RETRIES)."),
+            ]
+        return t
+
+    # failure_class == 4: B2B receivables
+    t = Thread(messages=[
+        MsgBeat(OUT, AGENT,
+                f"Namaste {name}, this is a reminder that invoice {invoice_no} for {rupees} is now overdue. When can we expect the payment?"),
+    ])
+    if outcome == "recovered":
+        t.p2p_phrase = persona["p2p"]
+        t.messages += [MsgBeat(IN, CUSTOMER, persona["p2p"])]
+        # Agent confirmation + system beats are appended by the seeder AFTER it
+        # extracts the real date from the reply above.
+    elif outcome == "escalated_dispute":
+        t.messages += [
+            MsgBeat(IN, CUSTOMER, "yeh invoice galat hai, humne itna order nahi kiya tha"),
+            MsgBeat(OUT, SYSTEM, "Dispute raised — automation frozen, escalated to a human (DISPUTE_FREEZE)."),
+        ]
+    return t
