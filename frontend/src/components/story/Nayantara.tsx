@@ -20,6 +20,14 @@ const FILE: Record<Pose, string> = {
   hopeful: "naya-hopeful.png",
 };
 
+// The landscape exports (confused, hopeful) get contained by width and render
+// small; bump their scale so every pose reads at a similar size. Anchored at the
+// feet so they still stand on the baseline.
+const SCALE: Partial<Record<Pose, number>> = {
+  confused: 1.85,
+  hopeful: 1.5,
+};
+
 // Rough gesture hint for the placeholder: the raised-arm angle per pose.
 const ARM_ANGLE: Record<Pose, number> = {
   wave: -55,
@@ -67,6 +75,10 @@ export default function Nayantara({ pose }: { pose: Pose }) {
       src={`/nayantara/${FILE[pose]}`}
       alt={`Nayantara — ${pose}`}
       className="h-full w-full select-none object-contain object-bottom"
+      style={{
+        transform: `scale(${SCALE[pose] ?? 1})`,
+        transformOrigin: "center bottom",
+      }}
       draggable={false}
       onError={() => setBroken(true)}
     />
