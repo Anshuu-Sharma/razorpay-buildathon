@@ -2,13 +2,16 @@
 
 import { usePathname } from "next/navigation";
 import LocaleToggle from "@/components/LocaleToggle";
-import { activeLabel } from "@/lib/dashboard/nav";
+import { activeNav, navLabel } from "@/lib/dashboard/nav";
+import { useDash } from "@/lib/dashboard/i18n";
 import { useDashboardRefresh } from "@/lib/dashboard/refresh";
 
 export default function Topbar() {
   const pathname = usePathname() ?? "/mission-control";
   const { refresh, reseed, reseeding } = useDashboardRefresh();
-  const section = activeLabel(pathname);
+  const { d } = useDash();
+  const item = activeNav(pathname);
+  const section = item ? navLabel(item, d) : d.nav.overview;
 
   return (
     <header
@@ -29,7 +32,7 @@ export default function Topbar() {
             className="h-1.5 w-1.5 animate-pulse rounded-full"
             style={{ background: "var(--d-ok)" }}
           />
-          Live
+          {d.topbar.live}
         </span>
       </div>
 
@@ -40,7 +43,7 @@ export default function Topbar() {
           style={{ borderColor: "var(--d-border)", color: "var(--d-muted)" }}
           title="Refresh data"
         >
-          Refresh
+          {d.topbar.refresh}
         </button>
         <button
           onClick={reseed}
@@ -49,7 +52,7 @@ export default function Topbar() {
           style={{ background: "var(--d-ink)" }}
           title="Rebuild the demo dataset"
         >
-          {reseeding ? "Reseeding…" : "Reset demo"}
+          {reseeding ? d.topbar.reseeding : d.topbar.reset}
         </button>
         <div className="ml-1">
           <LocaleToggle />

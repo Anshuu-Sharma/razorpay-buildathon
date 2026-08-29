@@ -400,3 +400,10 @@ html.theme-dashboard ::selection { background: var(--d-accent); color: #fff; }
   border-radius: 14px;
   box-shadow: var(--d-shadow);
 }
+
+/* Dashboard uses Geist (Latin-only) — fall back to the Devanagari sans under HI
+   so the [ EN | HI ] toggle renders Hindi correctly. Higher specificity + later
+   source order than the base `.theme-dashboard` rule, so it wins. */
+.theme-dashboard:lang(hi) {
+  --font-ui: var(--font-deva-sans), system-ui, sans-serif;
+}

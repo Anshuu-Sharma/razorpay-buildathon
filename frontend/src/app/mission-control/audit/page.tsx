@@ -6,6 +6,7 @@ import { ErrorState, Loading } from "@/components/dashboard/PageState";
 import { useApi } from "@/hooks/useApi";
 import { fetchAudit } from "@/lib/dashboard/api";
 import { humanize } from "@/lib/dashboard/format";
+import { useDash } from "@/lib/dashboard/i18n";
 import { useDashboardRefresh } from "@/lib/dashboard/refresh";
 import type { AuditEntry } from "@/lib/dashboard/types";
 
@@ -60,6 +61,7 @@ function Row({ e }: { e: AuditEntry }) {
 
 export default function AuditLogPage() {
   const { bump } = useDashboardRefresh();
+  const { d } = useDash();
   const load = useCallback((signal: AbortSignal) => fetchAudit({ limit: 500 }, signal), []);
   const { data, error, loading } = useApi(load, [bump]);
   const [q, setQ] = useState("");
@@ -76,16 +78,15 @@ export default function AuditLogPage() {
     );
   }, [data, q]);
 
-  if (loading) return <Loading label="Loading audit log…" />;
+  if (loading) return <Loading label={d.state.audit} />;
   if (error || !data) return <ErrorState message={error ?? "no data"} />;
 
   return (
     <div className="mx-auto max-w-[1220px] space-y-4 p-5 md:p-6">
       <div>
-        <h1 className="text-lg font-semibold tracking-tight">Audit Log</h1>
+        <h1 className="text-lg font-semibold tracking-tight">{d.audit.title}</h1>
         <p className="mt-0.5 text-[12.5px]" style={{ color: "var(--d-muted)" }}>
-          The append-only, tamper-evident ledger — every action REX took, in order. Rows can never
-          be edited or deleted.
+          {d.audit.desc}
         </p>
       </div>
 
@@ -97,7 +98,7 @@ export default function AuditLogPage() {
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Filter by transaction, node, action…"
+            placeholder={d.audit.searchPh}
             className="w-64 rounded-lg border px-3 py-1.5 text-[12.5px] outline-none"
             style={{
               borderColor: "var(--d-border)",
@@ -106,7 +107,7 @@ export default function AuditLogPage() {
             }}
           />
           <span className="ml-auto d-num text-[12px]" style={{ color: "var(--d-faint)" }}>
-            {rows.length} of {data.total} entries
+            {d.audit.entries(rows.length, data.total)}
           </span>
         </div>
         <div className="max-h-[70vh] overflow-y-auto">

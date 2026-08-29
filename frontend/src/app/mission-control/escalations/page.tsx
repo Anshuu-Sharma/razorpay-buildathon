@@ -6,7 +6,8 @@ import MiniStat from "@/components/dashboard/MiniStat";
 import { ErrorState, Loading } from "@/components/dashboard/PageState";
 import { useApi } from "@/hooks/useApi";
 import { fetchEscalations } from "@/lib/dashboard/api";
-import { humanize, relativeTime } from "@/lib/dashboard/format";
+import { humanize } from "@/lib/dashboard/format";
+import { useDash, relTime } from "@/lib/dashboard/i18n";
 import { useDashboardRefresh } from "@/lib/dashboard/refresh";
 
 const TH = "px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide";
@@ -14,10 +15,12 @@ const TD = "px-3 py-2.5 align-middle";
 
 export default function EscalationsPage() {
   const { bump } = useDashboardRefresh();
+  const { d } = useDash();
+  const e = d.esc;
   const load = useCallback((signal: AbortSignal) => fetchEscalations(signal), []);
   const { data, error, loading } = useApi(load, [bump]);
 
-  if (loading) return <Loading label="Loading escalations…" />;
+  if (loading) return <Loading label={d.state.esc} />;
   if (error || !data) return <ErrorState message={error ?? "no data"} />;
 
   const open = data.filter((t) => t.status === "OPEN").length;
@@ -26,17 +29,16 @@ export default function EscalationsPage() {
   return (
     <div className="mx-auto max-w-[1220px] space-y-4 p-5 md:p-6">
       <div>
-        <h1 className="text-lg font-semibold tracking-tight">Escalations</h1>
+        <h1 className="text-lg font-semibold tracking-tight">{e.title}</h1>
         <p className="mt-0.5 text-[12.5px]" style={{ color: "var(--d-muted)" }}>
-          The human-handoff queue — cases REX compliantly routed to a person (disputes, policy
-          blocks) instead of acting autonomously.
+          {e.desc}
         </p>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        <MiniStat label="Total" value={String(data.length)} />
-        <MiniStat label="Open" value={String(open)} accent="var(--d-slate)" />
-        <MiniStat label="Resolved" value={String(resolved)} accent="var(--d-ok)" />
+        <MiniStat label={e.total} value={String(data.length)} />
+        <MiniStat label={e.open} value={String(open)} accent="var(--d-slate)" />
+        <MiniStat label={e.resolved} value={String(resolved)} accent="var(--d-ok)" />
       </div>
 
       <Card>
@@ -45,11 +47,11 @@ export default function EscalationsPage() {
             <table className="w-full border-collapse text-[13px]">
               <thead>
                 <tr style={{ color: "var(--d-muted)", borderBottom: "1px solid var(--d-border)" }}>
-                  <th className={TH}>Transaction</th>
-                  <th className={TH}>Reason</th>
-                  <th className={TH}>Rule</th>
-                  <th className={TH}>Status</th>
-                  <th className={`${TH} text-right`}>When</th>
+                  <th className={TH}>{e.colTxn}</th>
+                  <th className={TH}>{e.colReason}</th>
+                  <th className={TH}>{e.colRule}</th>
+                  <th className={TH}>{e.colStatus}</th>
+                  <th className={`${TH} text-right`}>{e.colWhen}</th>
                 </tr>
               </thead>
               <tbody>
@@ -70,11 +72,11 @@ export default function EscalationsPage() {
                           color: t.status === "OPEN" ? "var(--d-slate)" : "var(--d-ok)",
                         }}
                       >
-                        {humanize(t.status)}
+                        {t.status === "OPEN" ? e.open : e.resolved}
                       </span>
                     </td>
                     <td className={`${TD} text-right text-[12px]`} style={{ color: "var(--d-faint)" }}>
-                      {relativeTime(t.created_at)}
+                      {relTime(t.created_at, d)}
                     </td>
                   </tr>
                 ))}
@@ -83,7 +85,7 @@ export default function EscalationsPage() {
           </div>
         ) : (
           <div className="px-4 py-16 text-center text-[13px]" style={{ color: "var(--d-faint)" }}>
-            No escalations — every case was handled autonomously within policy.
+            {e.empty}
           </div>
         )}
       </Card>

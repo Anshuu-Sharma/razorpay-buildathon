@@ -1,0 +1,511 @@
+"use client";
+
+import { useLocale } from "@/lib/i18n/LocaleProvider";
+import type { Locale } from "@/lib/i18n/dictionary";
+
+/**
+ * Dashboard-scoped EN/HI strings. Kept separate from the marketing dictionary so
+ * the operations surface owns its own vocabulary. Technical enum values
+ * (playbook/node/action identifiers, error codes, IDs) are intentionally left in
+ * their canonical form — like code — and are not translated.
+ */
+const DASH = {
+  en: {
+    brandSub: "Mission Control",
+    exit: "← Exit to site",
+    soon: "Soon",
+    classWord: "Class",
+    groups: { classes: "Failure classes", compliance: "Compliance" },
+    nav: {
+      overview: "Overview",
+      transactions: "Transactions",
+      live: "Live Run",
+      escalations: "Escalations",
+      audit: "Audit Log",
+      compliance: "Stopping Rules",
+      policy: "Policy Inspector",
+    },
+    topbar: { live: "Live", refresh: "Refresh", reset: "Reset demo", reseeding: "Reseeding…" },
+    state: {
+      loadingGeneric: "Loading…",
+      metrics: "Loading metrics…",
+      txns: "Loading transactions…",
+      classpg: "Loading class…",
+      classMetrics: "Loading class metrics…",
+      esc: "Loading escalations…",
+      audit: "Loading audit log…",
+      compliance: "Loading compliance…",
+      policy: "Loading policy…",
+      errTitle: "Couldn’t load the dataset",
+      errEmpty: "The backend has no data yet — seed the demo batch to populate the dashboard.",
+      errApi: (m: string) =>
+        `The API request failed: ${m}. Is the REX backend running on the configured host?`,
+      seed: "Seed demo data",
+      seeding: "Seeding…",
+    },
+    overview: {
+      kRecovered: "Revenue Recovered",
+      kRecoveredSub: (risk: string, n: number) => `of ${risk} at-risk · ${n} txns`,
+      kAtRisk: "At-Risk Revenue",
+      kAtRiskSub: (n: number) => `${n} cases flagged`,
+      kInFlight: "In-Flight",
+      kInFlightSub: "interventions awaiting outcome",
+      kLost: "Lost / Write-off",
+      kLostSub: (n: number) => `${n} non-recoverable`,
+      gaugeTitle: "Gross Recovery Rate",
+      gaugeSub: "GRRR across the batch",
+      avgTtr: "avg time-to-recovery",
+      funnelTitle: "Recovery Funnel",
+      funnelSub: "From flagged at-risk to a settled outcome",
+      recoveredChip: (p: string) => `${p} recovered`,
+      ft: {
+        atRisk: "At-risk",
+        intervened: "Intervened",
+        recovered: "Recovered",
+        escalated: "Escalated",
+        stopped: "Stopped",
+        lost: "Lost",
+      },
+      timeTitle: "Recovered Revenue Over Time",
+      timeSub: "Cumulative, settled across the last two weeks",
+      byClassTitle: "Recovered by Class",
+      byClassSub: "Share of won revenue",
+      won: "won",
+      channelsTitle: "Channel Effectiveness",
+      channelsSub: "Dispatched vs recovered",
+      noDispatch: "No dispatches yet.",
+      complianceTitle: "Compliance Stops",
+      complianceSub: "Deterministic stopping rules fired",
+      escalatedChip: (n: number) => `${n} escalated`,
+      noRules: "No stopping rules fired.",
+    },
+    txns: {
+      title: "Transactions",
+      desc: "Every payment REX has seen — healthy volume, flagged failures, and their recovery outcome. Click a row for its full audit trail.",
+      searchPh: "Search customer or ID…",
+      allTypes: "All types",
+      tRecovery: "Recovery cases",
+      tHealthy: "Healthy",
+      tNonRec: "Non-recoverable",
+      allStatuses: "All statuses",
+      of: "of",
+      noMatch: "No transactions match these filters.",
+      col: {
+        customer: "Customer",
+        class: "Class",
+        aiTag: "AI Tag",
+        amount: "Amount",
+        status: "Status",
+        playbook: "Playbook",
+        channel: "Channel",
+        ttr: "TTR",
+        when: "When",
+      },
+    },
+    classpg: {
+      how: "How REX works this class",
+      playbook: "Playbook",
+      mechanism: "Mechanism",
+      stop: "Stopping rule ·",
+      mRecovered: "Recovered",
+      mAtRisk: "At-risk",
+      mRate: "Recovery rate",
+      mCases: "Cases",
+      mAvgTtr: "Avg TTR",
+      mTopPlaybook: "Top playbook",
+    },
+    drawer: {
+      detail: "Transaction detail",
+      amount: "Amount",
+      aiTag: "AI Tag",
+      playbook: "Playbook",
+      channel: "Channel",
+      confidence: "Confidence",
+      ttr: "Time to recovery",
+      stoppingRule: "Stopping rule",
+      errorCode: "Error code",
+      diagnosis: "Gemini diagnosis",
+      rootCause: "Root cause:",
+      recommended: "Recommended:",
+      timeline: (n: number) => `Audit timeline · ${n} entries`,
+      loading: "Loading…",
+      notFound: "Not found",
+    },
+    esc: {
+      title: "Escalations",
+      desc: "The human-handoff queue — cases REX compliantly routed to a person (disputes, policy blocks) instead of acting autonomously.",
+      total: "Total",
+      open: "Open",
+      resolved: "Resolved",
+      colTxn: "Transaction",
+      colReason: "Reason",
+      colRule: "Rule",
+      colStatus: "Status",
+      colWhen: "When",
+      empty: "No escalations — every case was handled autonomously within policy.",
+    },
+    audit: {
+      title: "Audit Log",
+      desc: "The append-only, tamper-evident ledger — every action REX took, in order. Rows can never be edited or deleted.",
+      searchPh: "Filter by transaction, node, action…",
+      entries: (a: number, b: number) => `${a} of ${b} entries`,
+    },
+    comp: {
+      title: "Stopping Rules",
+      descA: "Deterministic compliance guards enforced ",
+      descEm: "outside",
+      descB: " the LLM — the engine’s adherence to opt-outs, disputes and RBI/TRAI limits never depends on a model behaving.",
+      fired: "Rules fired",
+      escalated: "Escalated to human",
+      stopped: "Compliantly stopped",
+      firedTitle: "Rules Fired",
+      firedSub: "Across the current batch",
+      catalogTitle: "Rule Catalog",
+      catalogSub: "Every guard the engine can invoke",
+      noFired: "No stopping rules fired yet.",
+    },
+    policy: {
+      title: "Policy Inspector",
+      desc: "The deterministic “Bouncer”. Every action the conversational layer proposes is validated against this hardcoded policy before any money moves — a jailbroken or prompt-injected LLM still cannot exceed these limits.",
+      ceiling: "Amount ceiling",
+      ceilingSub: "Gates money-moving actions only — a reminder on a larger invoice is still allowed.",
+      discount: "Max discount / fee waiver",
+      discountSub: "Any concession above this is rejected, whatever the model proposes.",
+      actionsTitle: "Allowed Actions",
+      actionsSub: "The closed set the engine may attempt",
+      actionsNote: "Highlighted actions move money and are subject to the amount ceiling.",
+      channelsTitle: "Allowed Channels",
+      channelsSub: "Outbound contact is restricted to these",
+    },
+    status: {
+      RECOVERED: "Recovered",
+      INTERVENING: "In-flight",
+      WAITING: "Waiting",
+      DIAGNOSING: "Diagnosing",
+      PENDING: "Pending",
+      ESCALATED: "Escalated",
+      CANCELLED: "Stopped",
+      FAILED: "Lost",
+    },
+    aitag: {
+      RECOVERY_CASE: "Recovery case",
+      HEALTHY: "Healthy",
+      NON_RECOVERABLE: "Non-recoverable",
+    },
+    classLabel: {
+      1: "Real-Time Degradation",
+      2: "Checkout Abandonment",
+      3: "Subscription & Mandate",
+      4: "B2B Receivables",
+    } as Record<number, string>,
+    classShort: {
+      1: "Degradation",
+      2: "Abandonment",
+      3: "Mandate",
+      4: "Receivables",
+    } as Record<number, string>,
+    solve: {
+      1: {
+        trigger: "Acquirer switch timeout / issuer down",
+        playbook: "Reroute rail → pre-auth link",
+        mechanism:
+          "Detects the degraded rail in-flight and re-routes to a healthy fallback, then sends a secure 1-tap link for abandoned sessions.",
+        stop: "Late settlement kills the fallback (no double charge).",
+      },
+      2: {
+        trigger: "OTP / 3DS drop-off at the modal",
+        playbook: "UPI Autopay nudge",
+        mechanism:
+          "Dispatches a 1-tap UPI Autopay link over WhatsApp, bypassing card friction — a policy-gated fee waiver only if warranted.",
+        stop: "Cross-device completion → go silent.",
+      },
+      3: {
+        trigger: "Auto-debit fails on pre-salary low balance",
+        playbook: "Salary-cycle sequencer",
+        mechanism:
+          "Defers the retry to align with the customer's salary-credit window instead of burning attempts on an empty account.",
+        stop: "RBI cap: at most 3 auto-debit retries; explicit cancel stops instantly.",
+      },
+      4: {
+        trigger: "Overdue Net-30 B2B invoice",
+        playbook: "Promise-to-Pay tracker",
+        mechanism:
+          "WhatsApps the AP team, extracts a hard Promise-to-Pay date from the reply, and holds dunning until that date.",
+        stop: "A dispute freezes automation and escalates to a human.",
+      },
+    } as Record<number, { trigger: string; playbook: string; mechanism: string; stop: string }>,
+    rel: { now: "just now", m: "m ago", h: "h ago", d: "d ago" },
+    dur: { s: "s", m: "m" },
+    // Overrides the backend's English rule descriptions when present.
+    ruleDesc: {} as Record<string, string>,
+  },
+
+  hi: {
+    brandSub: "मिशन कंट्रोल",
+    exit: "← साइट पर लौटें",
+    soon: "जल्द",
+    classWord: "श्रेणी",
+    groups: { classes: "विफलता श्रेणियाँ", compliance: "अनुपालन" },
+    nav: {
+      overview: "अवलोकन",
+      transactions: "लेन-देन",
+      live: "लाइव रन",
+      escalations: "एस्केलेशन",
+      audit: "ऑडिट लॉग",
+      compliance: "स्टॉपिंग नियम",
+      policy: "नीति निरीक्षक",
+    },
+    topbar: { live: "लाइव", refresh: "रिफ्रेश", reset: "डेमो रीसेट", reseeding: "रीसीड हो रहा…" },
+    state: {
+      loadingGeneric: "लोड हो रहा…",
+      metrics: "मेट्रिक्स लोड हो रहे…",
+      txns: "लेन-देन लोड हो रहे…",
+      classpg: "श्रेणी लोड हो रही…",
+      classMetrics: "श्रेणी मेट्रिक्स लोड हो रहे…",
+      esc: "एस्केलेशन लोड हो रहे…",
+      audit: "ऑडिट लॉग लोड हो रहा…",
+      compliance: "अनुपालन लोड हो रहा…",
+      policy: "नीति लोड हो रही…",
+      errTitle: "डेटासेट लोड नहीं हो सका",
+      errEmpty: "बैकएंड में अभी कोई डेटा नहीं है — डैशबोर्ड भरने के लिए डेमो बैच सीड करें।",
+      errApi: (m: string) =>
+        `API अनुरोध विफल: ${m}. क्या REX बैकएंड कॉन्फ़िगर किए गए होस्ट पर चल रहा है?`,
+      seed: "डेमो डेटा सीड करें",
+      seeding: "सीड हो रहा…",
+    },
+    overview: {
+      kRecovered: "वसूला गया राजस्व",
+      kRecoveredSub: (risk: string, n: number) => `${risk} जोखिम में से · ${n} लेन-देन`,
+      kAtRisk: "जोखिम में राजस्व",
+      kAtRiskSub: (n: number) => `${n} मामले चिह्नित`,
+      kInFlight: "प्रगति में",
+      kInFlightSub: "परिणाम की प्रतीक्षा में हस्तक्षेप",
+      kLost: "हानि / राइट-ऑफ़",
+      kLostSub: (n: number) => `${n} अवसूली-योग्य`,
+      gaugeTitle: "सकल वसूली दर",
+      gaugeSub: "बैच में GRRR",
+      avgTtr: "औसत वसूली-समय",
+      funnelTitle: "वसूली फ़नल",
+      funnelSub: "चिह्नित जोखिम से निपटे परिणाम तक",
+      recoveredChip: (p: string) => `${p} वसूला`,
+      ft: {
+        atRisk: "जोखिम में",
+        intervened: "हस्तक्षेप",
+        recovered: "वसूला",
+        escalated: "एस्केलेट",
+        stopped: "रोका",
+        lost: "हानि",
+      },
+      timeTitle: "समय के साथ वसूला राजस्व",
+      timeSub: "संचयी, पिछले दो सप्ताह में निपटा",
+      byClassTitle: "श्रेणी अनुसार वसूली",
+      byClassSub: "जीते राजस्व का हिस्सा",
+      won: "जीता",
+      channelsTitle: "चैनल प्रभावशीलता",
+      channelsSub: "भेजे बनाम वसूले",
+      noDispatch: "अभी कोई डिस्पैच नहीं।",
+      complianceTitle: "अनुपालन रोक",
+      complianceSub: "नियतात्मक स्टॉपिंग नियम लागू",
+      escalatedChip: (n: number) => `${n} एस्केलेट`,
+      noRules: "कोई स्टॉपिंग नियम लागू नहीं हुआ।",
+    },
+    txns: {
+      title: "लेन-देन",
+      desc: "REX द्वारा देखा गया हर भुगतान — स्वस्थ वॉल्यूम, चिह्नित विफलताएँ और उनका वसूली परिणाम। पूरा ऑडिट ट्रेल देखने हेतु किसी पंक्ति पर क्लिक करें।",
+      searchPh: "ग्राहक या ID खोजें…",
+      allTypes: "सभी प्रकार",
+      tRecovery: "वसूली मामले",
+      tHealthy: "स्वस्थ",
+      tNonRec: "अवसूली-योग्य",
+      allStatuses: "सभी स्थितियाँ",
+      of: "में से",
+      noMatch: "इन फ़िल्टरों से कोई लेन-देन मेल नहीं खाता।",
+      col: {
+        customer: "ग्राहक",
+        class: "श्रेणी",
+        aiTag: "AI टैग",
+        amount: "राशि",
+        status: "स्थिति",
+        playbook: "प्लेबुक",
+        channel: "चैनल",
+        ttr: "TTR",
+        when: "कब",
+      },
+    },
+    classpg: {
+      how: "REX इस श्रेणी को कैसे संभालता है",
+      playbook: "प्लेबुक",
+      mechanism: "तंत्र",
+      stop: "स्टॉपिंग नियम ·",
+      mRecovered: "वसूला",
+      mAtRisk: "जोखिम में",
+      mRate: "वसूली दर",
+      mCases: "मामले",
+      mAvgTtr: "औसत TTR",
+      mTopPlaybook: "मुख्य प्लेबुक",
+    },
+    drawer: {
+      detail: "लेन-देन विवरण",
+      amount: "राशि",
+      aiTag: "AI टैग",
+      playbook: "प्लेबुक",
+      channel: "चैनल",
+      confidence: "विश्वास",
+      ttr: "वसूली-समय",
+      stoppingRule: "स्टॉपिंग नियम",
+      errorCode: "त्रुटि कोड",
+      diagnosis: "Gemini निदान",
+      rootCause: "मूल कारण:",
+      recommended: "अनुशंसित:",
+      timeline: (n: number) => `ऑडिट टाइमलाइन · ${n} प्रविष्टियाँ`,
+      loading: "लोड हो रहा…",
+      notFound: "नहीं मिला",
+    },
+    esc: {
+      title: "एस्केलेशन",
+      desc: "मानव-हस्तांतरण कतार — स्वायत्त कार्रवाई के बजाय REX ने अनुपालनपूर्वक जिन मामलों को किसी व्यक्ति को भेजा (विवाद, नीति अवरोध)।",
+      total: "कुल",
+      open: "खुले",
+      resolved: "हल",
+      colTxn: "लेन-देन",
+      colReason: "कारण",
+      colRule: "नियम",
+      colStatus: "स्थिति",
+      colWhen: "कब",
+      empty: "कोई एस्केलेशन नहीं — हर मामला नीति के भीतर स्वायत्त रूप से संभाला गया।",
+    },
+    audit: {
+      title: "ऑडिट लॉग",
+      desc: "केवल-जोड़ने वाला, छेड़छाड़-प्रमाण बहीखाता — REX की हर कार्रवाई, क्रम में। पंक्तियाँ कभी संपादित या हटाई नहीं जा सकतीं।",
+      searchPh: "लेन-देन, नोड, क्रिया से फ़िल्टर करें…",
+      entries: (a: number, b: number) => `${b} में से ${a} प्रविष्टियाँ`,
+    },
+    comp: {
+      title: "स्टॉपिंग नियम",
+      descA: "LLM के ",
+      descEm: "बाहर",
+      descB: " लागू नियतात्मक अनुपालन गार्ड — ऑप्ट-आउट, विवाद और RBI/TRAI सीमाओं का पालन किसी मॉडल के व्यवहार पर निर्भर नहीं करता।",
+      fired: "नियम लागू",
+      escalated: "मानव को एस्केलेट",
+      stopped: "अनुपालनपूर्वक रोका",
+      firedTitle: "लागू नियम",
+      firedSub: "वर्तमान बैच में",
+      catalogTitle: "नियम सूची",
+      catalogSub: "इंजन द्वारा लागू किए जा सकने वाले सभी गार्ड",
+      noFired: "अभी कोई स्टॉपिंग नियम लागू नहीं हुआ।",
+    },
+    policy: {
+      title: "नीति निरीक्षक",
+      desc: "नियतात्मक “बाउंसर”। कोई भी पैसा हिलने से पहले संवादी परत का हर प्रस्ताव इस हार्डकोडेड नीति से सत्यापित होता है — जेलब्रेक या प्रॉम्प्ट-इंजेक्टेड LLM भी इन सीमाओं से आगे नहीं जा सकता।",
+      ceiling: "राशि सीमा",
+      ceilingSub: "केवल पैसा-हिलाने वाली क्रियाओं पर लागू — बड़े इनवॉइस पर रिमाइंडर फिर भी अनुमत है।",
+      discount: "अधिकतम छूट / शुल्क माफ़ी",
+      discountSub: "इससे ऊपर कोई भी रियायत अस्वीकृत, चाहे मॉडल कुछ भी प्रस्तावित करे।",
+      actionsTitle: "अनुमत क्रियाएँ",
+      actionsSub: "इंजन जो सीमित सेट आज़मा सकता है",
+      actionsNote: "हाइलाइट की गई क्रियाएँ पैसा हिलाती हैं और राशि सीमा के अधीन हैं।",
+      channelsTitle: "अनुमत चैनल",
+      channelsSub: "बाहरी संपर्क इन्हीं तक सीमित है",
+    },
+    status: {
+      RECOVERED: "वसूला",
+      INTERVENING: "प्रगति में",
+      WAITING: "प्रतीक्षारत",
+      DIAGNOSING: "निदान",
+      PENDING: "लंबित",
+      ESCALATED: "एस्केलेट",
+      CANCELLED: "रोका",
+      FAILED: "हानि",
+    },
+    aitag: {
+      RECOVERY_CASE: "वसूली मामला",
+      HEALTHY: "स्वस्थ",
+      NON_RECOVERABLE: "अवसूली-योग्य",
+    },
+    classLabel: {
+      1: "रीयल-टाइम गिरावट",
+      2: "चेकआउट परित्याग",
+      3: "सब्सक्रिप्शन और मैंडेट",
+      4: "B2B प्राप्य",
+    } as Record<number, string>,
+    classShort: {
+      1: "गिरावट",
+      2: "परित्याग",
+      3: "मैंडेट",
+      4: "प्राप्य",
+    } as Record<number, string>,
+    solve: {
+      1: {
+        trigger: "एक्वायरर स्विच टाइमआउट / इशूअर डाउन",
+        playbook: "रेल री-रूट → प्री-ऑथ लिंक",
+        mechanism:
+          "प्रवाह के दौरान बिगड़ी रेल का पता लगाकर स्वस्थ फॉलबैक पर री-रूट करता है, फिर छोड़े गए सत्रों के लिए सुरक्षित 1-टैप लिंक भेजता है।",
+        stop: "देर से निपटान फॉलबैक रोक देता है (कोई दोहरा शुल्क नहीं)।",
+      },
+      2: {
+        trigger: "मॉडल पर OTP / 3DS ड्रॉप-ऑफ़",
+        playbook: "UPI ऑटोपे नज",
+        mechanism:
+          "WhatsApp पर 1-टैप UPI ऑटोपे लिंक भेजता है, कार्ड फ्रिक्शन से बचते हुए — ज़रूरत होने पर ही नीति-नियंत्रित शुल्क माफ़ी।",
+        stop: "क्रॉस-डिवाइस पूर्णता → चुप हो जाना।",
+      },
+      3: {
+        trigger: "सैलरी से पहले कम बैलेंस पर ऑटो-डेबिट विफल",
+        playbook: "सैलरी-साइकल सीक्वेंसर",
+        mechanism:
+          "खाली खाते पर प्रयास बर्बाद करने के बजाय रीट्राई को ग्राहक की सैलरी-क्रेडिट विंडो के साथ संरेखित करने हेतु स्थगित करता है।",
+        stop: "RBI सीमा: अधिकतम 3 ऑटो-डेबिट रीट्राई; स्पष्ट रद्दीकरण तुरंत रोकता है।",
+      },
+      4: {
+        trigger: "अतिदेय Net-30 B2B इनवॉइस",
+        playbook: "प्रॉमिस-टू-पे ट्रैकर",
+        mechanism:
+          "AP टीम को WhatsApp करता है, उत्तर से पक्की प्रॉमिस-टू-पे तिथि निकालता है, और उस तिथि तक तक़ाज़ा रोक देता है।",
+        stop: "विवाद स्वचालन को फ्रीज़ कर मानव को एस्केलेट करता है।",
+      },
+    } as Record<number, { trigger: string; playbook: string; mechanism: string; stop: string }>,
+    rel: { now: "अभी", m: "मि पहले", h: "घं पहले", d: "दि पहले" },
+    dur: { s: "से", m: "मि" },
+    ruleDesc: {
+      NO_DOUBLE_CHARGE: "देर से निपटान होने पर कोई भी चालू फॉलबैक रोक दिया जाता है ताकि ग्राहक से दो बार शुल्क न लिया जाए।",
+      CROSS_DEVICE_COMPLETION: "यदि ग्राहक किसी अन्य डिवाइस पर भुगतान पूरा कर ले, तो संपर्क चुप हो जाता है।",
+      RBI_MAX_RETRIES: "RBI प्रति चक्र अधिकतम 3 ऑटो-डेबिट रीट्राई की अनुमति देता है; इंजन इससे आगे नहीं जाता।",
+      EXPLICIT_CANCEL: "स्पष्ट रद्दीकरण अनुरोध पर वर्कफ़्लो तुरंत रुक जाता है।",
+      OPT_OUT: "कोई भी ऑप्ट-आउट (हिंग्लिश सहित) आगे के सभी संपर्क रोक देता है, प्रॉम्प्ट इंजेक्शन के भीतर भी माना जाता है।",
+      DISPUTE_FREEZE: "विवाद स्वचालन को फ्रीज़ कर मामले को मानव के पास भेज देता है।",
+      TRAI_QUIET_HOURS: "20:00–09:00 IST के बीच कोई आउटबाउंड वॉइस/संदेश नहीं (TRAI); संपर्क स्थगित किया जाता है।",
+      VOICE_ATTEMPT_CAP: "प्रत्येक 72-घंटे की अवधि में अधिकतम 2 वॉइस प्रयास।",
+    } as Record<string, string>,
+  },
+};
+
+export type DashStrings = (typeof DASH)["en"];
+
+// Compile-time guarantee that HI carries every EN key (structural, not literal —
+// string values widen, so only a missing/mistyped key fails the build).
+const _localeParity: Record<Locale, DashStrings> = DASH;
+void _localeParity;
+
+export function useDash(): { d: DashStrings; locale: Locale } {
+  const { locale } = useLocale();
+  return { d: DASH[locale] as DashStrings, locale };
+}
+
+// Locale-aware time helpers (kept here so components read words from one place).
+export function relTime(iso: string, d: DashStrings): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return d.rel.now;
+  if (mins < 60) return `${mins}${d.rel.m}`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}${d.rel.h}`;
+  return `${Math.floor(hrs / 24)}${d.rel.d}`;
+}
+
+export function durTime(seconds: number | null | undefined, d: DashStrings): string {
+  if (seconds == null) return "—";
+  if (seconds < 60) return `${Math.round(seconds)}${d.dur.s}`;
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  return s ? `${m}${d.dur.m} ${s}${d.dur.s}` : `${m}${d.dur.m}`;
+}

@@ -4,9 +4,11 @@ import { useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApi } from "@/hooks/useApi";
 import { fetchTransaction } from "@/lib/dashboard/api";
-import { duration, humanize, inr, pct } from "@/lib/dashboard/format";
-import { CLASS_COLOR, CLASS_LABEL, aiTagTone, statusTone } from "@/lib/dashboard/status";
-import type { AuditEntry } from "@/lib/dashboard/types";
+import { humanize, inr, pct } from "@/lib/dashboard/format";
+import { useDash, durTime } from "@/lib/dashboard/i18n";
+import { CLASS_COLOR, aiTagTone, statusTone } from "@/lib/dashboard/status";
+import type { AuditEntry, LifecycleStatus } from "@/lib/dashboard/types";
+import type { DashStrings } from "@/lib/dashboard/i18n";
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -39,25 +41,27 @@ function PayloadLine({ entry }: { entry: AuditEntry }) {
   );
 }
 
-function Body({ id }: { id: string }) {
+function Body({ id, d }: { id: string; d: DashStrings }) {
   const load = useCallback((signal: AbortSignal) => fetchTransaction(id, signal), [id]);
   const { data: t, error, loading } = useApi(load, [id]);
 
   if (loading)
     return (
       <div className="flex h-40 items-center justify-center text-[13px]" style={{ color: "var(--d-muted)" }}>
-        Loading…
+        {d.drawer.loading}
       </div>
     );
   if (error || !t)
     return (
       <div className="p-6 text-[13px]" style={{ color: "var(--d-bad)" }}>
-        {error ?? "Not found"}
+        {error ?? d.drawer.notFound}
       </div>
     );
 
   const status = statusTone(t.status);
   const ai = aiTagTone(t.ai_tag);
+  const aiLabel =
+    t.ai_tag && t.ai_tag in d.aitag ? d.aitag[t.ai_tag as keyof typeof d.aitag] : ai.label;
 
   return (
     <div className="space-y-5 p-5">
@@ -69,14 +73,14 @@ function Body({ id }: { id: string }) {
             style={{ background: CLASS_COLOR[t.failure_class] }}
           />
           <span className="text-[12px] font-medium" style={{ color: "var(--d-muted)" }}>
-            {CLASS_LABEL[t.failure_class]}
+            {d.classLabel[t.failure_class]}
           </span>
           <span
             className="ml-auto inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium"
             style={{ background: status.soft, color: status.fg }}
           >
             <span className="h-1.5 w-1.5 rounded-full" style={{ background: status.fg }} />
-            {status.label}
+            {d.status[t.status as LifecycleStatus] ?? t.status}
           </span>
         </div>
         <h2 className="mt-2 text-lg font-semibold tracking-tight">{t.customer_name}</h2>
@@ -87,41 +91,41 @@ function Body({ id }: { id: string }) {
 
       {/* Facts grid */}
       <div className="grid grid-cols-2 gap-4 rounded-xl p-4" style={{ background: "var(--d-surface-2)" }}>
-        <Field label="Amount" value={<span className="d-num">{inr(t.amount_inr)}</span>} />
+        <Field label={d.drawer.amount} value={<span className="d-num">{inr(t.amount_inr)}</span>} />
         <Field
-          label="AI Tag"
+          label={d.drawer.aiTag}
           value={
             <span
               className="inline-flex rounded px-1.5 py-0.5 text-[11px]"
               style={{ background: ai.soft, color: ai.fg }}
             >
-              {ai.label}
+              {aiLabel}
             </span>
           }
         />
-        <Field label="Playbook" value={humanize(t.playbook)} />
-        <Field label="Channel" value={t.channel ? humanize(t.channel) : "—"} />
+        <Field label={d.drawer.playbook} value={humanize(t.playbook)} />
+        <Field label={d.drawer.channel} value={t.channel ? humanize(t.channel) : "—"} />
         <Field
-          label="Confidence"
+          label={d.drawer.confidence}
           value={<span className="d-num">{t.confidence != null ? pct(t.confidence) : "—"}</span>}
         />
-        <Field label="Time to recovery" value={<span className="d-num">{duration(t.time_to_recovery_seconds)}</span>} />
-        {t.stopping_rule ? <Field label="Stopping rule" value={humanize(t.stopping_rule)} /> : null}
-        {t.error_code ? <Field label="Error code" value={<span className="d-num">{t.error_code}</span>} /> : null}
+        <Field label={d.drawer.ttr} value={<span className="d-num">{durTime(t.time_to_recovery_seconds, d)}</span>} />
+        {t.stopping_rule ? <Field label={d.drawer.stoppingRule} value={humanize(t.stopping_rule)} /> : null}
+        {t.error_code ? <Field label={d.drawer.errorCode} value={<span className="d-num">{t.error_code}</span>} /> : null}
       </div>
 
       {/* Diagnosis */}
       {t.diagnosis?.root_cause ? (
         <div className="rounded-xl border p-4" style={{ borderColor: "var(--d-border)" }}>
           <p className="d-label" style={{ color: "var(--d-accent)" }}>
-            Gemini diagnosis
+            {d.drawer.diagnosis}
           </p>
           <p className="mt-1.5 text-[13px]">
-            <span style={{ color: "var(--d-muted)" }}>Root cause:</span>{" "}
+            <span style={{ color: "var(--d-muted)" }}>{d.drawer.rootCause}</span>{" "}
             <span className="d-num font-medium">{t.diagnosis.root_cause}</span>
           </p>
           <p className="mt-1 text-[13px]">
-            <span style={{ color: "var(--d-muted)" }}>Recommended:</span>{" "}
+            <span style={{ color: "var(--d-muted)" }}>{d.drawer.recommended}</span>{" "}
             <span className="font-medium">{humanize(t.diagnosis.recommended_playbook)}</span>
             {t.diagnosis.confidence != null ? (
               <span className="d-num" style={{ color: "var(--d-faint)" }}>
@@ -135,7 +139,7 @@ function Body({ id }: { id: string }) {
 
       {/* Audit timeline */}
       <div>
-        <p className="d-label mb-2">Audit timeline · {t.audit_trail.length} entries</p>
+        <p className="d-label mb-2">{d.drawer.timeline(t.audit_trail.length)}</p>
         <ol className="space-y-3">
           {t.audit_trail.map((e, i) => (
             <li key={e.id} className="relative pl-5">
@@ -176,6 +180,7 @@ export default function TransactionDrawer({
   id: string | null;
   onClose: () => void;
 }) {
+  const { d } = useDash();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -211,7 +216,7 @@ export default function TransactionDrawer({
               className="sticky top-0 z-10 flex items-center justify-between px-5 py-3"
               style={{ borderBottom: "1px solid var(--d-border)", background: "var(--d-surface)" }}
             >
-              <span className="d-label">Transaction detail</span>
+              <span className="d-label">{d.drawer.detail}</span>
               <button
                 onClick={onClose}
                 className="grid h-7 w-7 place-items-center rounded-md text-[15px] transition-colors hover:bg-[var(--d-surface-2)]"
@@ -221,7 +226,7 @@ export default function TransactionDrawer({
                 ✕
               </button>
             </div>
-            <Body id={id} />
+            <Body id={id} d={d} />
           </motion.aside>
         </motion.div>
       ) : null}

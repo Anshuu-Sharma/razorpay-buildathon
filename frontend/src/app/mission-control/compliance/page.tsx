@@ -8,16 +8,19 @@ import { ErrorState, Loading } from "@/components/dashboard/PageState";
 import { useApi } from "@/hooks/useApi";
 import { fetchMetrics, fetchPolicy } from "@/lib/dashboard/api";
 import { humanize } from "@/lib/dashboard/format";
+import { useDash } from "@/lib/dashboard/i18n";
 import { useDashboardRefresh } from "@/lib/dashboard/refresh";
 
 export default function CompliancePage() {
   const { bump } = useDashboardRefresh();
+  const { d } = useDash();
+  const cc = d.comp;
   const loadM = useCallback((signal: AbortSignal) => fetchMetrics(signal), []);
   const loadP = useCallback((signal: AbortSignal) => fetchPolicy(signal), []);
   const metrics = useApi(loadM, [bump]);
   const policy = useApi(loadP, [bump]);
 
-  if (metrics.loading || policy.loading) return <Loading label="Loading compliance…" />;
+  if (metrics.loading || policy.loading) return <Loading label={d.state.compliance} />;
   if (metrics.error || !metrics.data) return <ErrorState message={metrics.error ?? "no data"} />;
   if (policy.error || !policy.data) return <ErrorState message={policy.error ?? "no data"} />;
 
@@ -31,35 +34,36 @@ export default function CompliancePage() {
   return (
     <div className="mx-auto max-w-[1220px] space-y-5 p-5 md:p-6">
       <div>
-        <h1 className="text-lg font-semibold tracking-tight">Stopping Rules</h1>
+        <h1 className="text-lg font-semibold tracking-tight">{cc.title}</h1>
         <p className="mt-0.5 text-[12.5px]" style={{ color: "var(--d-muted)" }}>
-          Deterministic compliance guards enforced <em>outside</em> the LLM — the engine&apos;s
-          adherence to opt-outs, disputes and RBI/TRAI limits never depends on a model behaving.
+          {cc.descA}
+          <em>{cc.descEm}</em>
+          {cc.descB}
         </p>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        <MiniStat label="Rules fired" value={String(totalFired)} accent="var(--d-slate)" />
-        <MiniStat label="Escalated to human" value={String(metrics.data.counts.escalations)} accent="var(--d-info)" />
-        <MiniStat label="Compliantly stopped" value={String(metrics.data.counts.cancelled)} accent="var(--d-muted)" />
+        <MiniStat label={cc.fired} value={String(totalFired)} accent="var(--d-slate)" />
+        <MiniStat label={cc.escalated} value={String(metrics.data.counts.escalations)} accent="var(--d-info)" />
+        <MiniStat label={cc.stopped} value={String(metrics.data.counts.cancelled)} accent="var(--d-muted)" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
-          <CardHeader title="Rules Fired" subtitle="Across the current batch" />
+          <CardHeader title={cc.firedTitle} subtitle={cc.firedSub} />
           <div className="px-5 pb-5">
             {barRows.length ? (
               <HBarList rows={barRows} />
             ) : (
               <p className="text-[12px]" style={{ color: "var(--d-faint)" }}>
-                No stopping rules fired yet.
+                {cc.noFired}
               </p>
             )}
           </div>
         </Card>
 
         <Card>
-          <CardHeader title="Rule Catalog" subtitle="Every guard the engine can invoke" />
+          <CardHeader title={cc.catalogTitle} subtitle={cc.catalogSub} />
           <ul className="px-5 pb-5">
             {policy.data.stopping_rules.map((r) => {
               const count = fired[r.name] ?? 0;
@@ -72,7 +76,7 @@ export default function CompliancePage() {
                   <div className="min-w-0 flex-1">
                     <p className="text-[12.5px] font-semibold">{humanize(r.name)}</p>
                     <p className="mt-0.5 text-[11.5px] leading-snug" style={{ color: "var(--d-muted)" }}>
-                      {r.description}
+                      {d.ruleDesc[r.name] ?? r.description}
                     </p>
                   </div>
                   <span

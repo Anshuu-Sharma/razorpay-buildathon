@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { CLASS_COLOR, CLASS_SHORT } from "./status";
+import { CLASS_COLOR } from "./status";
+import type { DashStrings } from "./i18n";
 
 /** A stroked 18px icon. `d` may be one or more path segments. */
 function Icon({ children }: { children: ReactNode }) {
@@ -67,36 +68,38 @@ const icons = {
   ),
 };
 
+type NavKey = keyof DashStrings["nav"];
+
 export interface NavItem {
-  label: string;
+  navKey: NavKey;
   href: string;
   icon: ReactNode;
   ready: boolean;
-  dot?: string; // optional colour dot (class tabs)
+  classId?: number; // present for the four class tabs
 }
 
 export interface NavGroup {
-  title?: string;
+  groupKey?: keyof DashStrings["groups"];
   items: NavItem[];
 }
 
 export const NAV: NavGroup[] = [
   {
     items: [
-      { label: "Overview", href: "/mission-control", icon: icons.overview, ready: true },
+      { navKey: "overview", href: "/mission-control", icon: icons.overview, ready: true },
       {
-        label: "Transactions",
+        navKey: "transactions",
         href: "/mission-control/transactions",
         icon: icons.transactions,
         ready: true,
       },
-      { label: "Live Run", href: "/mission-control/live", icon: icons.live, ready: true },
+      { navKey: "live", href: "/mission-control/live", icon: icons.live, ready: true },
     ],
   },
   {
-    title: "Failure classes",
+    groupKey: "classes",
     items: [1, 2, 3, 4].map((n) => ({
-      label: `Class ${n} · ${CLASS_SHORT[n]}`,
+      navKey: "overview" as NavKey, // unused for class items; label comes from classId
       href: `/mission-control/class/${n}`,
       icon: (
         <span
@@ -105,27 +108,27 @@ export const NAV: NavGroup[] = [
         />
       ),
       ready: true,
-      dot: CLASS_COLOR[n],
+      classId: n,
     })),
   },
   {
-    title: "Compliance",
+    groupKey: "compliance",
     items: [
       {
-        label: "Escalations",
+        navKey: "escalations",
         href: "/mission-control/escalations",
         icon: icons.escalations,
         ready: true,
       },
-      { label: "Audit Log", href: "/mission-control/audit", icon: icons.audit, ready: true },
+      { navKey: "audit", href: "/mission-control/audit", icon: icons.audit, ready: true },
       {
-        label: "Stopping Rules",
+        navKey: "compliance",
         href: "/mission-control/compliance",
         icon: icons.compliance,
         ready: true,
       },
       {
-        label: "Policy Inspector",
+        navKey: "policy",
         href: "/mission-control/policy",
         icon: icons.policy,
         ready: true,
@@ -134,12 +137,15 @@ export const NAV: NavGroup[] = [
   },
 ];
 
-/** Flat lookup of the active section's label for the topbar. */
-export function activeLabel(pathname: string): string {
-  const all = NAV.flatMap((g) => g.items);
-  // Longest matching href wins (so /class/1 beats /mission-control).
-  const match = all
+/** Localized label for a nav item. */
+export function navLabel(item: NavItem, d: DashStrings): string {
+  if (item.classId) return `${d.classWord} ${item.classId} · ${d.classShort[item.classId]}`;
+  return d.nav[item.navKey];
+}
+
+/** The active nav item for a pathname (longest matching href wins). */
+export function activeNav(pathname: string): NavItem | undefined {
+  return NAV.flatMap((g) => g.items)
     .filter((i) => pathname === i.href || pathname.startsWith(i.href + "/"))
     .sort((a, b) => b.href.length - a.href.length)[0];
-  return match?.label ?? "Overview";
 }

@@ -3,27 +3,21 @@
 import { useCallback, useMemo, useState } from "react";
 import { useApi } from "@/hooks/useApi";
 import { fetchTransactions } from "@/lib/dashboard/api";
+import { useDash } from "@/lib/dashboard/i18n";
 import { useDashboardRefresh } from "@/lib/dashboard/refresh";
-import type { TransactionRow } from "@/lib/dashboard/types";
+import type { LifecycleStatus, TransactionRow } from "@/lib/dashboard/types";
 import { Card } from "./Card";
 import { ErrorState, Loading } from "./PageState";
 import TransactionTable from "./TransactionTable";
 import TransactionDrawer from "./TransactionDrawer";
 
-const STATUSES = [
+const STATUSES: LifecycleStatus[] = [
   "RECOVERED",
   "INTERVENING",
   "WAITING",
   "ESCALATED",
   "CANCELLED",
   "FAILED",
-];
-
-const TYPES: { value: string; label: string }[] = [
-  { value: "", label: "All types" },
-  { value: "RECOVERY_CASE", label: "Recovery cases" },
-  { value: "HEALTHY", label: "Healthy" },
-  { value: "NON_RECOVERABLE", label: "Non-recoverable" },
 ];
 
 function Select({
@@ -53,6 +47,13 @@ function Select({
 
 export default function TransactionExplorer({ fixedClass }: { fixedClass?: number }) {
   const { bump } = useDashboardRefresh();
+  const { d } = useDash();
+  const TYPES: { value: string; label: string }[] = [
+    { value: "", label: d.txns.allTypes },
+    { value: "RECOVERY_CASE", label: d.txns.tRecovery },
+    { value: "HEALTHY", label: d.txns.tHealthy },
+    { value: "NON_RECOVERABLE", label: d.txns.tNonRec },
+  ];
   const load = useCallback(
     (signal: AbortSignal) => fetchTransactions({ limit: 500 }, signal),
     []
@@ -94,7 +95,7 @@ export default function TransactionExplorer({ fixedClass }: { fixedClass?: numbe
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search customer or ID…"
+            placeholder={d.txns.searchPh}
             className="w-52 rounded-lg border px-3 py-1.5 text-[12.5px] outline-none"
             style={{
               borderColor: "var(--d-border)",
@@ -112,15 +113,15 @@ export default function TransactionExplorer({ fixedClass }: { fixedClass?: numbe
             </Select>
           ) : null}
           <Select value={status} onChange={setStatus}>
-            <option value="">All statuses</option>
+            <option value="">{d.txns.allStatuses}</option>
             {STATUSES.map((s) => (
               <option key={s} value={s}>
-                {s.charAt(0) + s.slice(1).toLowerCase()}
+                {d.status[s]}
               </option>
             ))}
           </Select>
           <span className="ml-auto d-num text-[12px]" style={{ color: "var(--d-faint)" }}>
-            {rows.length} of {fixedClass ? rows.length : data.total}
+            {rows.length} {d.txns.of} {fixedClass ? rows.length : data.total}
           </span>
         </div>
 

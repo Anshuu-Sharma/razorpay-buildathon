@@ -37,59 +37,6 @@ export const CLASS_COLOR: Record<number, string> = {
   4: "#8b5cf6", // violet — B2B receivables
 };
 
-export const CLASS_LABEL: Record<number, string> = {
-  1: "Real-Time Degradation",
-  2: "Checkout Abandonment",
-  3: "Subscription & Mandate",
-  4: "B2B Receivables",
-};
-
-export const CLASS_SHORT: Record<number, string> = {
-  1: "Degradation",
-  2: "Abandonment",
-  3: "Mandate",
-  4: "Receivables",
-};
-
-export interface ClassSolve {
-  trigger: string;
-  playbook: string;
-  mechanism: string;
-  stop: string;
-}
-
-/** How REX actually works each class — surfaced on the class tabs. */
-export const CLASS_SOLVE: Record<number, ClassSolve> = {
-  1: {
-    trigger: "Acquirer switch timeout / issuer down",
-    playbook: "Reroute rail → pre-auth link",
-    mechanism:
-      "Detects the degraded rail in-flight and re-routes to a healthy fallback, then sends a secure 1-tap link for abandoned sessions.",
-    stop: "Late settlement kills the fallback (no double charge).",
-  },
-  2: {
-    trigger: "OTP / 3DS drop-off at the modal",
-    playbook: "UPI Autopay nudge",
-    mechanism:
-      "Dispatches a 1-tap UPI Autopay link over WhatsApp, bypassing card friction — a policy-gated fee waiver only if warranted.",
-    stop: "Cross-device completion → go silent.",
-  },
-  3: {
-    trigger: "Auto-debit fails on pre-salary low balance",
-    playbook: "Salary-cycle sequencer",
-    mechanism:
-      "Defers the retry to align with the customer's salary-credit window instead of burning attempts on an empty account.",
-    stop: "RBI cap: at most 3 auto-debit retries; explicit cancel stops instantly.",
-  },
-  4: {
-    trigger: "Overdue Net-30 B2B invoice",
-    playbook: "Promise-to-Pay tracker",
-    mechanism:
-      "WhatsApps the AP team, extracts a hard Promise-to-Pay date from the reply, and holds dunning until that date.",
-    stop: "A dispute freezes automation and escalates to a human.",
-  },
-};
-
 /** AI classification chip tone. */
 export function aiTagTone(tag: string | null): Tone {
   switch (tag) {
