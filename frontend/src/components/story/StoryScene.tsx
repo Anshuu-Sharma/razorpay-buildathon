@@ -98,8 +98,9 @@ export default function StoryScene() {
         />
       </svg>
 
-      {/* Sticky doodle — pinned centre, weaves with scroll */}
-      <div className="pointer-events-none sticky top-0 z-10 flex h-screen items-center justify-center">
+      {/* Sticky doodle — pinned centre, weaves with scroll. Bottom padding
+          lifts it above dead-centre so the figure's feet stay in view. */}
+      <div className="pointer-events-none sticky top-0 z-10 flex h-screen items-center justify-center pb-[12vh]">
         <motion.div
           style={{ x: doodleX, y: doodleY, rotate: doodleRot }}
           className="relative h-[52vh] w-[40vw] max-w-[380px] md:h-[60vh]"
@@ -128,7 +129,7 @@ export default function StoryScene() {
         {STORY.map((b, i) => {
           const textOnRight = i % 2 === 0;
           return (
-            <div key={b.id} className="flex min-h-screen items-center">
+            <div key={b.id} className="flex min-h-screen items-center pb-[12vh]">
               <div
                 className={
                   textOnRight
