@@ -1,14 +1,104 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApi } from "@/hooks/useApi";
-import { fetchTransaction } from "@/lib/dashboard/api";
+import { addNote, fetchTransaction, setStatus } from "@/lib/dashboard/api";
 import { humanize, inr, pct } from "@/lib/dashboard/format";
 import { useDash, durTime } from "@/lib/dashboard/i18n";
+import { useDashboardRefresh } from "@/lib/dashboard/refresh";
+import { useRexRun } from "@/lib/dashboard/rexrun";
 import { CLASS_COLOR, aiTagTone, statusTone } from "@/lib/dashboard/status";
 import type { AuditEntry, LifecycleStatus } from "@/lib/dashboard/types";
 import type { DashStrings } from "@/lib/dashboard/i18n";
+
+const OPERATOR_STATUSES: LifecycleStatus[] = [
+  "RECOVERED",
+  "INTERVENING",
+  "ESCALATED",
+  "CANCELLED",
+  "FAILED",
+];
+
+function OperatorActions({ id, current }: { id: string; current: string }) {
+  const { d } = useDash();
+  const { refresh } = useDashboardRefresh();
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState("");
+
+  const doStatus = async (s: string) => {
+    if (busy || s === current) return;
+    setBusy(true);
+    try {
+      await setStatus(id, s);
+      refresh();
+    } finally {
+      setBusy(false);
+    }
+  };
+  const doNote = async () => {
+    const n = note.trim();
+    if (!n || busy) return;
+    setBusy(true);
+    try {
+      await addNote(id, n);
+      setNote("");
+      refresh();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border p-4" style={{ borderColor: "var(--d-border)" }}>
+      <p className="d-label mb-2">
+        {d.ops.title}
+        {busy ? <span style={{ color: "var(--d-faint)" }}> · {d.ops.working}</span> : null}
+      </p>
+      <p className="mb-1.5 text-[11px]" style={{ color: "var(--d-faint)" }}>
+        {d.ops.setOutcome}
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {OPERATOR_STATUSES.map((s) => {
+          const tone = statusTone(s);
+          const active = s === current;
+          return (
+            <button
+              key={s}
+              onClick={() => doStatus(s)}
+              disabled={busy || active}
+              className="rounded-lg px-2.5 py-1 text-[11.5px] font-medium transition-opacity disabled:opacity-100"
+              style={
+                active
+                  ? { background: tone.fg, color: "#fff" }
+                  : { background: tone.soft, color: tone.fg }
+              }
+            >
+              {d.status[s]}
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-3 flex items-center gap-2">
+        <input
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder={d.ops.notePlaceholder}
+          className="flex-1 rounded-lg border px-2.5 py-1.5 text-[12px] outline-none"
+          style={{ borderColor: "var(--d-border)", background: "var(--d-bg)", color: "var(--d-ink)" }}
+        />
+        <button
+          onClick={doNote}
+          disabled={busy || !note.trim()}
+          className="shrink-0 rounded-lg px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50"
+          style={{ background: "var(--d-ink)" }}
+        >
+          {d.ops.addNote}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -41,9 +131,13 @@ function PayloadLine({ entry }: { entry: AuditEntry }) {
   );
 }
 
-function Body({ id, d }: { id: string; d: DashStrings }) {
+const RUNNABLE = new Set(["PENDING", "DIAGNOSING", "INTERVENING", "WAITING"]);
+
+function Body({ id, d, onClose }: { id: string; d: DashStrings; onClose: () => void }) {
+  const { bump } = useDashboardRefresh();
+  const rex = useRexRun();
   const load = useCallback((signal: AbortSignal) => fetchTransaction(id, signal), [id]);
-  const { data: t, error, loading } = useApi(load, [id]);
+  const { data: t, error, loading } = useApi(load, [id, bump]);
 
   if (loading)
     return (
@@ -88,6 +182,23 @@ function Body({ id, d }: { id: string; d: DashStrings }) {
           {t.transaction_id} · {t.customer_contact_masked}
         </p>
       </div>
+
+      {/* Let REX work the case, live (unresolved cases) */}
+      {RUNNABLE.has(t.status) ? (
+        <button
+          onClick={() => {
+            rex.start(t.transaction_id, t.customer_name ?? "Customer");
+            onClose();
+          }}
+          className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-[13.5px] font-semibold text-white"
+          style={{ background: CLASS_COLOR[t.failure_class] }}
+        >
+          ▶ {d.run.cta}
+        </button>
+      ) : null}
+
+      {/* Operator actions */}
+      <OperatorActions id={t.transaction_id} current={t.status} />
 
       {/* Facts grid */}
       <div className="grid grid-cols-2 gap-4 rounded-xl p-4" style={{ background: "var(--d-surface-2)" }}>
@@ -226,7 +337,7 @@ export default function TransactionDrawer({
                 ✕
               </button>
             </div>
-            <Body id={id} d={d} />
+            <Body id={id} d={d} onClose={onClose} />
           </motion.aside>
         </motion.div>
       ) : null}

@@ -32,15 +32,17 @@ function LinkCard({ url }: { url: string }) {
 export default function WhatsAppThread({
   messages,
   customerName,
+  typingWho = null,
 }: {
   messages: ConversationMessage[];
   customerName: string;
+  typingWho?: "agent" | "customer" | null;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages.length]);
+  }, [messages.length, typingWho]);
 
   const initial = (customerName || "?").charAt(0).toUpperCase();
 
@@ -128,6 +130,28 @@ export default function WhatsAppThread({
             );
           })}
         </AnimatePresence>
+
+        {typingWho ? (
+          <div className={`flex ${typingWho === "agent" ? "justify-end" : "justify-start"}`}>
+            <div
+              className="flex items-center gap-1 px-2.5 py-2"
+              style={{
+                background: typingWho === "agent" ? "#d9fdd3" : "#fff",
+                borderRadius: 8,
+                boxShadow: "0 1px 0.5px rgba(0,0,0,0.13)",
+              }}
+            >
+              {[0, 1, 2].map((i) => (
+                <motion.span
+                  key={i}
+                  style={{ width: 5, height: 5, borderRadius: "50%", background: "rgba(0,0,0,0.35)" }}
+                  animate={{ opacity: [0.3, 1, 0.3] }}
+                  transition={{ duration: 0.9, repeat: Infinity, delay: i * 0.2 }}
+                />
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {/* Faux input bar (compose lives in the panel below) */}

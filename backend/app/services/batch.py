@@ -13,6 +13,7 @@ believable batch every time without hitting the network.
 
 from __future__ import annotations
 
+import random
 import uuid
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
@@ -121,6 +122,19 @@ class ArchetypeSpec:
     count: int
 
 
+@dataclass
+class UnworkedSpec:
+    """A freshly-flagged case REX has NOT worked yet (PENDING, empty thread).
+
+    The operator runs REX on it live and watches the recovery happen. `run_outcome`
+    scripts only the customer's side of that run; the decisions stay real code.
+    """
+
+    failure_class: FailureClass
+    run_outcome: str  # recovered | p2p | optout | dispute
+    count: int
+
+
 # The default distribution: ~34 at-risk cases across the four classes plus
 # healthy/non-recoverable context. Tuned so no class is uniformly "recovered".
 DEFAULT_BATCH: list = [
@@ -140,6 +154,13 @@ DEFAULT_BATCH: list = [
     ScenarioSpec(FailureClass.B2B_RECEIVABLES, "escalated_dispute", 1),
     ArchetypeSpec("HEALTHY", FailureClass.CHECKOUT_ABANDONMENT, 12),
     ArchetypeSpec("NON_RECOVERABLE", FailureClass.REALTIME_DEGRADATION, 4),
+    # Fresh, unworked cases for the operator to run REX on live.
+    UnworkedSpec(FailureClass.REALTIME_DEGRADATION, "recovered", 1),
+    UnworkedSpec(FailureClass.CHECKOUT_ABANDONMENT, "recovered", 1),
+    UnworkedSpec(FailureClass.CHECKOUT_ABANDONMENT, "optout", 1),
+    UnworkedSpec(FailureClass.SUBSCRIPTION_MANDATE, "recovered", 1),
+    UnworkedSpec(FailureClass.B2B_RECEIVABLES, "p2p", 1),
+    UnworkedSpec(FailureClass.B2B_RECEIVABLES, "dispute", 1),
 ]
 
 
@@ -216,6 +237,8 @@ def seed_batch(db, *, spec: list | None = None, now: datetime | None = None) -> 
         for _ in range(item.count):
             if isinstance(item, ArchetypeSpec):
                 _seed_context_row(db, item, index)
+            elif isinstance(item, UnworkedSpec):
+                _seed_unworked(db, item.failure_class, item.run_outcome, index)
             else:
                 _seed_case(db, graph, item, index)
             index += 1
@@ -271,6 +294,27 @@ def _seed_context_row(db, item: ArchetypeSpec, index: int) -> None:
         txn.metadata_json.update({"ai_tag": "NON_RECOVERABLE", "error_code": "HARD_DECLINE"})
     db.add(txn)
     db.commit()
+
+
+def _seed_unworked(db, fc: FailureClass, run_outcome: str, index: int) -> TransactionState:
+    """A flagged-but-unworked case: PENDING, no conversation. REX runs it live."""
+    txn = _new_txn(
+        fc, index, archetype=f"CLASS_{int(fc)}", is_at_risk=True,
+        state=TransactionLifecycleState.PENDING,
+    )
+    txn.metadata_json.update({"ai_tag": "RECOVERY_CASE", "unworked": True, "run_outcome": run_outcome})
+    db.add(txn)
+    db.commit()
+    return txn
+
+
+def simulate_case(db, failure_class: int | None = None) -> TransactionState:
+    """Inject one fresh, unworked failure on demand ('a payment just failed')."""
+    fc = FailureClass(failure_class) if failure_class else random.choice(list(FailureClass))
+    run_outcome = {1: "recovered", 2: "recovered", 3: "recovered", 4: "p2p"}[int(fc)]
+    # Offset the index so the customer/amount differ from the seeded set.
+    index = db.query(TransactionState).count() + random.randint(0, len(_CUSTOMERS) - 1)
+    return _seed_unworked(db, fc, run_outcome, index)
 
 
 def _seed_case(db, graph, item: ScenarioSpec, index: int) -> None:

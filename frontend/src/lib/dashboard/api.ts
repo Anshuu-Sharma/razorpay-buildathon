@@ -9,6 +9,7 @@ import type {
   PolicyResponse,
   TransactionDetail,
   TransactionList,
+  TransactionRow,
 } from "./types";
 
 const V1 = `${API_BASE}/api/v1`;
@@ -92,6 +93,25 @@ export const startCall = (id: string) =>
 
 export const fetchCalls = (id: string, signal?: AbortSignal) =>
   getJson<{ calls: CallData[] }>(`/transactions/${encodeURIComponent(id)}/calls`, signal);
+
+export const setStatus = (id: string, status: string, note?: string) =>
+  postJson<TransactionRow>(`/transactions/${encodeURIComponent(id)}/status`, { status, note });
+
+export const addNote = (id: string, note: string) =>
+  postJson<{ id: number }>(`/transactions/${encodeURIComponent(id)}/note`, { note });
+
+export const resolveEscalation = (ticketId: number) =>
+  postJson<{ status: string }>(`/escalations/${ticketId}/resolve`, {});
+
+/** SSE URL for the live "REX works this case" run (consumed via EventSource). */
+export const runUrl = (id: string) =>
+  `${V1}/transactions/${encodeURIComponent(id)}/run`;
+
+export const simulateCase = (failureClass?: number) =>
+  postJson<TransactionRow>(
+    `/transactions/simulate${failureClass ? `?failure_class=${failureClass}` : ""}`,
+    {}
+  );
 
 export async function reseedDemo(): Promise<{ seeded: number }> {
   const res = await fetch(`${V1}/admin/seed`, { method: "POST" });

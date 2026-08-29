@@ -4,6 +4,7 @@ import { useCallback } from "react";
 import { useParams } from "next/navigation";
 import MiniStat from "@/components/dashboard/MiniStat";
 import ClassInfoButton from "@/components/dashboard/ClassInfoButton";
+import SimulateButton from "@/components/dashboard/SimulateButton";
 import TransactionExplorer from "@/components/dashboard/TransactionExplorer";
 import { ErrorState, Loading } from "@/components/dashboard/PageState";
 import { useApi } from "@/hooks/useApi";
@@ -52,7 +53,8 @@ export default function ClassPage() {
             {solve.trigger}
           </p>
         </div>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          <SimulateButton failureClass={id} accent={color} />
           <ClassInfoButton classId={id} color={color} />
         </div>
       </div>

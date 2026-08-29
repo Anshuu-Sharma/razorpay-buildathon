@@ -10,9 +10,12 @@ exposes the immutable trail itself for the Audit Log tab.
 Customer contact is PII: it is stored encrypted and only ever leaves here masked.
 """
 
+import json
 from collections import defaultdict
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -23,10 +26,22 @@ from app.enums import (
     MessageSender,
     MessageStatus,
     NodeName,
+    Outcome,
+    TransactionLifecycleState,
 )
 from app.models import AuditTrail, CallSession, CallTurn, Message, TransactionState
+from app.services.audit import record_audit
 from app.services.conversations import build_call, persona_for
 from app.services.drafting import draft_message
+from app.services.escalation import enqueue_escalation
+from app.services.live_run import run_recovery
+from app.utils import utcnow
+
+_SSE_HEADERS = {"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"}
+
+
+def _sse(event: str, data: dict[str, Any]) -> str:
+    return f"event: {event}\ndata: {json.dumps(data, default=str)}\n\n"
 
 router = APIRouter(tags=["transactions"])
 
@@ -329,6 +344,81 @@ def draft(transaction_id: str, payload: DraftBody, db: Session = Depends(get_db)
     except ValueError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
     return {"draft": text}
+
+
+@router.post("/transactions/simulate", status_code=status.HTTP_201_CREATED)
+def simulate(failure_class: int | None = Query(None, ge=1, le=4), db: Session = Depends(get_db)) -> dict:
+    """Inject a fresh, unworked failed transaction the operator can run REX on."""
+    from app.services.batch import simulate_case
+
+    txn = simulate_case(db, failure_class)
+    return _row(txn, [])
+
+
+@router.get("/transactions/{transaction_id}/run")
+def run_live(transaction_id: str, db: Session = Depends(get_db)):
+    """Stream REX working this case live (SSE) — diagnose → message → reply →
+    (call) → reconcile — so the viewer watches the agent recover it."""
+    _require_txn(db, transaction_id)
+
+    def event_stream():
+        for event, data in run_recovery(db, transaction_id):
+            yield _sse(event, data)
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream", headers=_SSE_HEADERS)
+
+
+class StatusBody(BaseModel):
+    status: TransactionLifecycleState
+    note: str | None = Field(default=None, max_length=1000)
+
+
+@router.post("/transactions/{transaction_id}/status")
+def set_status(transaction_id: str, payload: StatusBody, db: Session = Depends(get_db)) -> dict:
+    """An operator sets a transaction's outcome by hand. Audited, and (because the
+    metrics are derived) reflected in GRRR/funnel/counts immediately."""
+    txn = _require_txn(db, transaction_id)
+    old = txn.current_state.value
+    new = payload.status
+    txn.current_state = new
+    txn.updated_at = utcnow()
+    db.commit()
+
+    # Setting a case to ESCALATED puts it on the human queue, like the engine does.
+    if new == TransactionLifecycleState.ESCALATED:
+        enqueue_escalation(
+            db, transaction_id=transaction_id, reason=payload.note or "Escalated by operator"
+        )
+
+    record_audit(
+        db,
+        transaction_id=transaction_id,
+        node_name=NodeName.OPERATOR,
+        action_type=ActionType.STATE_TRANSITION,
+        payload={"event": "OPERATOR_STATUS_CHANGE", "from": old, "to": new.value,
+                 **({"note": payload.note} if payload.note else {})},
+        outcome=Outcome.ESCALATED if new == TransactionLifecycleState.ESCALATED else Outcome.SUCCESS,
+    )
+    trail = _audits_by_txn(db, [transaction_id]).get(transaction_id, [])
+    return _row(txn, trail)
+
+
+class NoteBody(BaseModel):
+    note: str = Field(min_length=1, max_length=1000)
+
+
+@router.post("/transactions/{transaction_id}/note", status_code=status.HTTP_201_CREATED)
+def add_note(transaction_id: str, payload: NoteBody, db: Session = Depends(get_db)) -> dict:
+    _require_txn(db, transaction_id)
+    entry = record_audit(
+        db,
+        transaction_id=transaction_id,
+        node_name=NodeName.OPERATOR,
+        action_type=ActionType.STATE_TRANSITION,
+        payload={"event": "OPERATOR_NOTE", "note": payload.note},
+        outcome=Outcome.SUCCESS,
+    )
+    return {"id": entry.id, "note": payload.note, "timestamp": entry.timestamp.isoformat()}
 
 
 @router.get("/audit")

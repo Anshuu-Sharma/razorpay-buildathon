@@ -5,7 +5,7 @@ import { Card } from "@/components/dashboard/Card";
 import MiniStat from "@/components/dashboard/MiniStat";
 import { ErrorState, Loading } from "@/components/dashboard/PageState";
 import { useApi } from "@/hooks/useApi";
-import { fetchEscalations } from "@/lib/dashboard/api";
+import { fetchEscalations, resolveEscalation } from "@/lib/dashboard/api";
 import { humanize } from "@/lib/dashboard/format";
 import { useDash, relTime } from "@/lib/dashboard/i18n";
 import { useDashboardRefresh } from "@/lib/dashboard/refresh";
@@ -14,9 +14,13 @@ const TH = "px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-w
 const TD = "px-3 py-2.5 align-middle";
 
 export default function EscalationsPage() {
-  const { bump } = useDashboardRefresh();
+  const { bump, refresh } = useDashboardRefresh();
   const { d } = useDash();
   const e = d.esc;
+  const onResolve = async (id: number) => {
+    await resolveEscalation(id);
+    refresh();
+  };
   const load = useCallback((signal: AbortSignal) => fetchEscalations(signal), []);
   const { data, error, loading } = useApi(load, [bump]);
 
@@ -52,6 +56,7 @@ export default function EscalationsPage() {
                   <th className={TH}>{e.colRule}</th>
                   <th className={TH}>{e.colStatus}</th>
                   <th className={`${TH} text-right`}>{e.colWhen}</th>
+                  <th className={`${TH} text-right`} />
                 </tr>
               </thead>
               <tbody>
@@ -77,6 +82,17 @@ export default function EscalationsPage() {
                     </td>
                     <td className={`${TD} text-right text-[12px]`} style={{ color: "var(--d-faint)" }}>
                       {relTime(t.created_at, d)}
+                    </td>
+                    <td className={`${TD} text-right`}>
+                      {t.status === "OPEN" ? (
+                        <button
+                          onClick={() => onResolve(t.id)}
+                          className="rounded-lg px-2.5 py-1 text-[11.5px] font-semibold text-white"
+                          style={{ background: "var(--d-ok)" }}
+                        >
+                          {d.ops.resolve}
+                        </button>
+                      ) : null}
                     </td>
                   </tr>
                 ))}

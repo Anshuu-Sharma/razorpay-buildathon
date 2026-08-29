@@ -43,6 +43,7 @@ class NodeName(str, Enum):
     WAIT = "WAIT"
     EXECUTE_INTERVENTION = "EXECUTE_INTERVENTION"
     RECONCILE = "RECONCILE"
+    OPERATOR = "OPERATOR"  # a human operator action (status change, note)
 
 
 class ActionType(str, Enum):

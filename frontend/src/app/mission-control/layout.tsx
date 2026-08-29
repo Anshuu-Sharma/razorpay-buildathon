@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import Sidebar from "@/components/dashboard/Sidebar";
 import Topbar from "@/components/dashboard/Topbar";
 import { DashboardRefreshProvider } from "@/lib/dashboard/refresh";
+import { RexRunProvider } from "@/lib/dashboard/rexrun";
 
 /**
  * Mission Control shell — the dark Vulcan marketing chrome is swapped for a
@@ -24,16 +25,18 @@ export default function MissionControlLayout({
 
   return (
     <DashboardRefreshProvider>
-      <div
-        className="theme-dashboard relative z-[200] flex h-screen overflow-hidden"
-        style={{ background: "var(--d-bg)", color: "var(--d-ink)" }}
-      >
-        <Sidebar />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <Topbar />
-          <main className="flex-1 overflow-y-auto">{children}</main>
+      <RexRunProvider>
+        <div
+          className="theme-dashboard relative z-[200] flex h-screen overflow-hidden"
+          style={{ background: "var(--d-bg)", color: "var(--d-ink)" }}
+        >
+          <Sidebar />
+          <div className="flex min-w-0 flex-1 flex-col">
+            <Topbar />
+            <main className="flex-1 overflow-y-auto">{children}</main>
+          </div>
         </div>
-      </div>
+      </RexRunProvider>
     </DashboardRefreshProvider>
   );
 }
