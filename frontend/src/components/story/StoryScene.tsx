@@ -132,8 +132,8 @@ export default function StoryScene() {
               <div
                 className={
                   textOnRight
-                    ? "w-full max-w-md px-6 md:ml-[52%] md:max-w-sm md:px-0 md:pr-[3vw]"
-                    : "w-full max-w-md px-6 md:mr-[52%] md:max-w-sm md:px-0 md:pl-[3vw]"
+                    ? "w-full max-w-md px-6 md:ml-[58%] md:max-w-sm md:px-0 md:pr-[3vw]"
+                    : "w-full max-w-md px-6 md:mr-[58%] md:max-w-sm md:px-0 md:pl-[3vw]"
                 }
               >
                 <SpeechCloud lines={b.lines} />
