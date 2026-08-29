@@ -49,7 +49,7 @@ export default function StoryClassCard({ classId }: { classId: 1 | 2 | 3 | 4 }) 
       </div>
 
       <Link
-        href={`/mission-control?class=${classId}`}
+        href={`/mission-control/live?class=${classId}`}
         className="mt-5 inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-white transition-transform hover:scale-[1.03]"
         style={{ background: "var(--color-clay)" }}
       >

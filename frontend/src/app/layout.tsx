@@ -4,6 +4,8 @@ import {
   Hanken_Grotesk,
   Fira_Code,
   Fraunces,
+  Geist,
+  Geist_Mono,
   Tiro_Devanagari_Hindi,
   Mukta,
 } from "next/font/google";
@@ -36,6 +38,20 @@ const fraunces = Fraunces({
   display: "swap",
 });
 
+// Dashboard chrome — the "solution operations" surface. Geist for UI, Geist Mono
+// for tabular numerals/IDs. Deliberately distinct from the story/marketing type.
+const geist = Geist({
+  variable: "--font-geist",
+  subsets: ["latin"],
+  display: "swap",
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+  display: "swap",
+});
+
 const tiroDeva = Tiro_Devanagari_Hindi({
   variable: "--font-tiro-deva",
   subsets: ["devanagari", "latin"],
@@ -62,7 +78,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${playfair.variable} ${hanken.variable} ${firaCode.variable} ${fraunces.variable} ${tiroDeva.variable} ${mukta.variable}`}
+      className={`${playfair.variable} ${hanken.variable} ${firaCode.variable} ${fraunces.variable} ${geist.variable} ${geistMono.variable} ${tiroDeva.variable} ${mukta.variable}`}
     >
       <body className="min-h-screen bg-void text-fg">
         <LocaleProvider>

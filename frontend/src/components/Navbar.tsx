@@ -1,15 +1,22 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useLocale } from "@/lib/i18n/LocaleProvider";
 import { useIntroPhase } from "@/lib/intro";
 import LocaleToggle from "./LocaleToggle";
 
 export default function Navbar() {
   const { t } = useLocale();
+  const pathname = usePathname();
+  const phase = useIntroPhase();
+
+  // Mission Control carries its own chrome (sidebar + topbar) — the marketing
+  // header would clash, so it never renders there.
+  if (pathname?.startsWith("/mission-control")) return null;
 
   // The header only appears after the user enters the experience.
-  if (useIntroPhase() !== "entered") return null;
+  if (phase !== "entered") return null;
 
   return (
     <nav className="fixed inset-x-0 top-0 z-50 flex items-center justify-between bg-transparent px-6 py-4 md:px-10">

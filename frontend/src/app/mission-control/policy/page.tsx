@@ -1,0 +1,90 @@
+"use client";
+
+import { useCallback } from "react";
+import { Card, CardHeader } from "@/components/dashboard/Card";
+import { ErrorState, Loading } from "@/components/dashboard/PageState";
+import { useApi } from "@/hooks/useApi";
+import { fetchPolicy } from "@/lib/dashboard/api";
+import { humanize, inr } from "@/lib/dashboard/format";
+import { useDashboardRefresh } from "@/lib/dashboard/refresh";
+
+function Pill({ children, money }: { children: React.ReactNode; money?: boolean }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[12px] font-medium"
+      style={{
+        background: money ? "var(--d-warn-soft)" : "var(--d-surface-2)",
+        color: money ? "var(--d-warn)" : "var(--d-ink)",
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+export default function PolicyPage() {
+  const { bump } = useDashboardRefresh();
+  const load = useCallback((signal: AbortSignal) => fetchPolicy(signal), []);
+  const { data, error, loading } = useApi(load, [bump]);
+
+  if (loading) return <Loading label="Loading policy…" />;
+  if (error || !data) return <ErrorState message={error ?? "no data"} />;
+
+  const { policy, money_moving_actions } = data;
+
+  return (
+    <div className="mx-auto max-w-[1000px] space-y-5 p-5 md:p-6">
+      <div>
+        <h1 className="text-lg font-semibold tracking-tight">Policy Inspector</h1>
+        <p className="mt-0.5 text-[12.5px]" style={{ color: "var(--d-muted)" }}>
+          The deterministic &ldquo;Bouncer&rdquo;. Every action the conversational layer proposes is
+          validated against this hardcoded policy before any money moves — a jailbroken or
+          prompt-injected LLM still cannot exceed these limits.
+        </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card className="p-5">
+          <p className="d-label">Amount ceiling</p>
+          <p className="d-num mt-1 text-2xl font-semibold">
+            {inr(policy.max_intervention_amount_minor / 100)}
+          </p>
+          <p className="mt-1.5 text-[12px]" style={{ color: "var(--d-muted)" }}>
+            Gates money-moving actions only — a reminder on a larger invoice is still allowed.
+          </p>
+        </Card>
+        <Card className="p-5">
+          <p className="d-label">Max discount / fee waiver</p>
+          <p className="d-num mt-1 text-2xl font-semibold">{policy.max_discount_pct}%</p>
+          <p className="mt-1.5 text-[12px]" style={{ color: "var(--d-muted)" }}>
+            Any concession above this is rejected, whatever the model proposes.
+          </p>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader title="Allowed Actions" subtitle="The closed set the engine may attempt" />
+        <div className="flex flex-wrap gap-2 px-5 pb-5">
+          {policy.allowed_actions.map((a) => (
+            <Pill key={a} money={money_moving_actions.includes(a)}>
+              {money_moving_actions.includes(a) ? "₹ " : ""}
+              {humanize(a)}
+            </Pill>
+          ))}
+        </div>
+        <p className="px-5 pb-4 text-[11.5px]" style={{ color: "var(--d-faint)" }}>
+          Highlighted actions move money and are subject to the amount ceiling.
+        </p>
+      </Card>
+
+      <Card>
+        <CardHeader title="Allowed Channels" subtitle="Outbound contact is restricted to these" />
+        <div className="flex flex-wrap gap-2 px-5 pb-5">
+          {policy.allowed_channels.map((c) => (
+            <Pill key={c}>{humanize(c)}</Pill>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}

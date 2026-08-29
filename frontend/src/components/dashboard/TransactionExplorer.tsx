@@ -1,0 +1,133 @@
+"use client";
+
+import { useCallback, useMemo, useState } from "react";
+import { useApi } from "@/hooks/useApi";
+import { fetchTransactions } from "@/lib/dashboard/api";
+import { useDashboardRefresh } from "@/lib/dashboard/refresh";
+import type { TransactionRow } from "@/lib/dashboard/types";
+import { Card } from "./Card";
+import { ErrorState, Loading } from "./PageState";
+import TransactionTable from "./TransactionTable";
+import TransactionDrawer from "./TransactionDrawer";
+
+const STATUSES = [
+  "RECOVERED",
+  "INTERVENING",
+  "WAITING",
+  "ESCALATED",
+  "CANCELLED",
+  "FAILED",
+];
+
+const TYPES: { value: string; label: string }[] = [
+  { value: "", label: "All types" },
+  { value: "RECOVERY_CASE", label: "Recovery cases" },
+  { value: "HEALTHY", label: "Healthy" },
+  { value: "NON_RECOVERABLE", label: "Non-recoverable" },
+];
+
+function Select({
+  value,
+  onChange,
+  children,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="rounded-lg border px-2.5 py-1.5 text-[12.5px] outline-none"
+      style={{
+        borderColor: "var(--d-border)",
+        background: "var(--d-surface)",
+        color: "var(--d-ink)",
+      }}
+    >
+      {children}
+    </select>
+  );
+}
+
+export default function TransactionExplorer({ fixedClass }: { fixedClass?: number }) {
+  const { bump } = useDashboardRefresh();
+  const load = useCallback(
+    (signal: AbortSignal) => fetchTransactions({ limit: 500 }, signal),
+    []
+  );
+  const { data, error, loading } = useApi(load, [bump]);
+
+  const [q, setQ] = useState("");
+  const [type, setType] = useState("");
+  const [status, setStatus] = useState("");
+  const [selected, setSelected] = useState<string | null>(null);
+
+  const rows: TransactionRow[] = useMemo(() => {
+    let items = data?.items ?? [];
+    if (fixedClass) items = items.filter((r) => r.failure_class === fixedClass);
+    if (type) items = items.filter((r) => r.ai_tag === type);
+    if (status) items = items.filter((r) => r.status === status);
+    if (q.trim()) {
+      const needle = q.trim().toLowerCase();
+      items = items.filter(
+        (r) =>
+          r.transaction_id.toLowerCase().includes(needle) ||
+          (r.customer_name ?? "").toLowerCase().includes(needle)
+      );
+    }
+    return items;
+  }, [data, fixedClass, type, status, q]);
+
+  if (loading) return <Loading label="Loading transactions…" />;
+  if (error || !data) return <ErrorState message={error ?? "no data"} />;
+
+  return (
+    <>
+      <Card>
+        {/* Filter bar */}
+        <div
+          className="flex flex-wrap items-center gap-2.5 px-4 py-3"
+          style={{ borderBottom: "1px solid var(--d-border)" }}
+        >
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search customer or ID…"
+            className="w-52 rounded-lg border px-3 py-1.5 text-[12.5px] outline-none"
+            style={{
+              borderColor: "var(--d-border)",
+              background: "var(--d-surface)",
+              color: "var(--d-ink)",
+            }}
+          />
+          {!fixedClass ? (
+            <Select value={type} onChange={setType}>
+              {TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </Select>
+          ) : null}
+          <Select value={status} onChange={setStatus}>
+            <option value="">All statuses</option>
+            {STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {s.charAt(0) + s.slice(1).toLowerCase()}
+              </option>
+            ))}
+          </Select>
+          <span className="ml-auto d-num text-[12px]" style={{ color: "var(--d-faint)" }}>
+            {rows.length} of {fixedClass ? rows.length : data.total}
+          </span>
+        </div>
+
+        <TransactionTable rows={rows} onSelect={setSelected} showClass={!fixedClass} />
+      </Card>
+
+      <TransactionDrawer id={selected} onClose={() => setSelected(null)} />
+    </>
+  );
+}

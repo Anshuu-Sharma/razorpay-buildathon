@@ -155,7 +155,7 @@ export default function StoryScene() {
                     className="mt-8 flex flex-wrap items-center gap-4"
                   >
                     <Link
-                      href="/mission-control?class=1"
+                      href="/mission-control/live?class=1"
                       className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-medium text-white transition-transform hover:scale-[1.03]"
                       style={{ background: "var(--color-fg)" }}
                     >

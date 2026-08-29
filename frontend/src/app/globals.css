@@ -331,3 +331,72 @@ html.theme-light ::selection { background: var(--color-clay); color: #fff; }
   );
   filter: blur(2px);
 }
+
+/* ============================================================
+   Mission Control · Dashboard theme (light modern SaaS)
+   A self-contained token scope so the dark Vulcan tokens are never
+   fought with. Applied by tagging <html class="theme-dashboard"> on mount.
+   ============================================================ */
+.theme-dashboard {
+  --d-bg: #fafaf9;
+  --d-surface: #ffffff;
+  --d-surface-2: #f5f5f4;
+  --d-border: #e7e5e4;
+  --d-border-strong: #d6d3d1;
+  --d-ink: #1c1917;
+  --d-muted: #78716c;
+  --d-faint: #a8a29e;
+  --d-accent: #4f46e5;
+  --d-accent-soft: #eef2ff;
+  --d-ok: #059669;
+  --d-ok-soft: #ecfdf5;
+  --d-warn: #d97706;
+  --d-warn-soft: #fffbeb;
+  --d-bad: #e11d48;
+  --d-bad-soft: #fff1f2;
+  --d-info: #0284c7;
+  --d-info-soft: #f0f9ff;
+  --d-slate: #475569;
+  --d-slate-soft: #f1f5f9;
+  --d-shadow: 0 1px 2px rgba(28, 25, 23, 0.04), 0 1px 3px rgba(28, 25, 23, 0.06);
+  --font-ui: var(--font-geist), system-ui, sans-serif;
+  --font-num: var(--font-geist-mono), ui-monospace, monospace;
+  font-family: var(--font-ui);
+}
+html.theme-dashboard body {
+  background-color: var(--d-bg);
+  color: var(--d-ink);
+  font-family: var(--font-ui);
+}
+html.theme-dashboard .grain,
+html.theme-dashboard .vignette {
+  display: none;
+}
+html.theme-dashboard ::-webkit-scrollbar { width: 10px; height: 10px; }
+html.theme-dashboard ::-webkit-scrollbar-track { background: transparent; }
+html.theme-dashboard ::-webkit-scrollbar-thumb {
+  background: #dcd9d5; border-radius: 6px; border: 2px solid var(--d-bg);
+}
+html.theme-dashboard ::selection { background: var(--d-accent); color: #fff; }
+
+/* Tabular monospace numerals — the dashboard's signature for any figure. */
+.d-num {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+/* Uppercase micro-label used on cards / axes. */
+.d-label {
+  font-family: var(--font-ui);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--d-muted);
+}
+.d-card {
+  background: var(--d-surface);
+  border: 1px solid var(--d-border);
+  border-radius: 14px;
+  box-shadow: var(--d-shadow);
+}

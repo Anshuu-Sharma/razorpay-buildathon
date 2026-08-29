@@ -1,150 +1,209 @@
 "use client";
 
-import Link from "next/link";
-import dynamic from "next/dynamic";
-import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
-import { motion } from "framer-motion";
-import { useLocale } from "@/lib/i18n/LocaleProvider";
-import { getFailureClass } from "@/lib/failure-classes";
-import { useRecoveryStream } from "@/hooks/useRecoveryStream";
-import AuditTerminal from "@/components/mission/AuditTerminal";
-import StatusChip from "@/components/mission/StatusChip";
+import { useCallback } from "react";
+import { Card, CardHeader, Chip } from "@/components/dashboard/Card";
+import KpiCard from "@/components/dashboard/KpiCard";
+import { AreaChart, Donut, FunnelBars, Gauge, HBarList } from "@/components/dashboard/charts";
+import { ErrorState, Loading } from "@/components/dashboard/PageState";
+import { useApi } from "@/hooks/useApi";
+import { fetchMetrics } from "@/lib/dashboard/api";
+import { duration, humanize, inr, pct, shortDate } from "@/lib/dashboard/format";
+import { CLASS_COLOR, CLASS_LABEL } from "@/lib/dashboard/status";
+import { useDashboardRefresh } from "@/lib/dashboard/refresh";
 
-// WebGL only exists in the browser — never server-render the canvas.
-const RecoveryGraph = dynamic(
-  () => import("@/components/mission/RecoveryGraph"),
-  { ssr: false }
-);
+export default function OverviewPage() {
+  const { bump } = useDashboardRefresh();
+  const load = useCallback((signal: AbortSignal) => fetchMetrics(signal), []);
+  const { data: m, error, loading } = useApi(load, [bump]);
 
-const ACCENT_HEX: Record<string, string> = {
-  cyan: "#00e5ff",
-  blue: "#025ee8",
-  wait: "#f5a623",
-  violet: "#8e2de2",
-};
+  if (loading) return <Loading label="Loading metrics…" />;
+  if (error || !m) return <ErrorState message={error ?? "no data"} />;
 
-function LiveSession({ classId }: { classId: number }) {
-  const { t, locale } = useLocale();
-  const fc = getFailureClass(classId);
-  const copy = fc.copy[locale];
-  const accent = ACCENT_HEX[fc.accent] ?? "#025ee8";
-  const stream = useRecoveryStream(classId);
+  const series = m.time_series.map((p) => ({
+    label: shortDate(p.date),
+    value: p.cumulative_inr,
+  }));
+  const sparkValues = m.time_series.map((p) => p.cumulative_inr);
+
+  const classSegments = [1, 2, 3, 4]
+    .map((n) => ({
+      label: CLASS_LABEL[n],
+      value: m.by_class[String(n)]?.recovered_inr ?? 0,
+      color: CLASS_COLOR[n],
+    }))
+    .filter((s) => s.value > 0);
+
+  const funnelStages = [
+    { label: "At-risk", value: m.funnel.at_risk, color: "var(--d-slate)" },
+    { label: "Intervened", value: m.funnel.intervened, color: CLASS_COLOR[2] },
+    { label: "Recovered", value: m.funnel.recovered, color: "var(--d-ok)" },
+    { label: "Escalated", value: m.funnel.escalated, color: "var(--d-info)" },
+    { label: "Stopped", value: m.funnel.cancelled, color: "var(--d-muted)" },
+    { label: "Lost", value: m.funnel.failed, color: "var(--d-bad)" },
+  ];
+
+  const channelRows = Object.entries(m.channel_breakdown).map(([ch, s]) => ({
+    label: humanize(ch),
+    value: s.dispatched,
+    display: `${s.recovered}/${s.dispatched}`,
+    sub: `${pct(s.dispatched ? s.recovered / s.dispatched : 0)} won`,
+    color: "var(--d-accent)",
+  }));
+
+  const ruleRows = Object.entries(m.stopping_rules_by_name)
+    .sort((a, b) => b[1] - a[1])
+    .map(([rule, count]) => ({
+      label: humanize(rule),
+      value: count,
+      color: "var(--d-slate)",
+    }));
 
   return (
-    <main className="flex h-screen flex-col pt-16 md:flex-row">
-      {/* Left 70% — Visualizer */}
-      <section className="relative flex h-1/2 w-full flex-col border-b border-white/10 md:h-full md:w-[70%] md:border-b-0 md:border-r">
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between p-6">
-          <div className="pointer-events-auto">
-            <Link href="/demo" className="wire-label transition-colors hover:text-fg">
-              ← {t.mission.back}
-            </Link>
-            <p className="kicker mt-3 text-cyan">{t.mission.active}</p>
-            <h1 className="display mt-1 text-2xl">{copy.title}</h1>
-          </div>
-          <div className="pointer-events-auto">
-            <StatusChip status={stream.status} />
-          </div>
-        </div>
+    <div className="mx-auto max-w-[1220px] space-y-5 p-5 md:p-6">
+      {/* Hero KPI row */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <KpiCard
+          label="Revenue Recovered"
+          value={inr(m.recovered_inr, { compact: true })}
+          accent="var(--d-ok)"
+          emphasis
+          spark={sparkValues}
+          sub={
+            <span>
+              of {inr(m.at_risk_inr, { compact: true })} at-risk ·{" "}
+              <span className="d-num">{m.counts.recovered}</span> txns
+            </span>
+          }
+        />
+        <KpiCard
+          label="At-Risk Revenue"
+          value={inr(m.at_risk_inr, { compact: true })}
+          sub={<span className="d-num">{m.funnel.at_risk} cases flagged</span>}
+        />
+        <KpiCard
+          label="In-Flight"
+          value={inr(m.in_flight_inr, { compact: true })}
+          accent="var(--d-warn)"
+          sub="interventions awaiting outcome"
+        />
+        <KpiCard
+          label="Lost / Write-off"
+          value={inr(m.lost_inr, { compact: true })}
+          accent="var(--d-bad)"
+          sub={<span className="d-num">{m.counts.failed} non-recoverable</span>}
+        />
+      </div>
 
-        <div className="relative flex flex-1 items-center justify-center overflow-hidden">
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "radial-gradient(ellipse at center, rgba(2,94,232,0.1) 0%, #000 70%)",
-            }}
+      {/* Gauge + Funnel */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="flex flex-col items-center justify-center py-5">
+          <CardHeader title="Gross Recovery Rate" subtitle="GRRR across the batch" />
+          <Gauge value={m.grrr} color="var(--d-ok)" />
+          <p className="mt-1 text-[12px]" style={{ color: "var(--d-muted)" }}>
+            avg time-to-recovery{" "}
+            <span className="d-num" style={{ color: "var(--d-ink)" }}>
+              {duration(m.avg_time_to_recovery_seconds)}
+            </span>
+          </p>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader
+            title="Recovery Funnel"
+            subtitle="From flagged at-risk to a settled outcome"
+            right={
+              <Chip tone={{ fg: "var(--d-ok)", soft: "var(--d-ok-soft)" }}>
+                {pct(m.funnel.at_risk ? m.funnel.recovered / m.funnel.at_risk : 0)} recovered
+              </Chip>
+            }
           />
-          <div className="absolute inset-x-0 bottom-0 h-1/2">
-            <div className="revenue-surface absolute inset-0" />
+          <div className="px-5 pb-5">
+            <FunnelBars stages={funnelStages} />
           </div>
+        </Card>
+      </div>
 
-          {stream.phase === "error" ? (
-            <div className="relative z-10 max-w-sm rounded-xl border border-fail/30 bg-fail/5 px-8 py-7 text-center">
-              <p className="kicker text-fail">{t.mission.streamError}</p>
-              <p className="mt-3 font-mono text-xs leading-relaxed text-muted">
-                {t.mission.streamErrorNote}
+      {/* Recovery over time */}
+      <Card>
+        <CardHeader
+          title="Recovered Revenue Over Time"
+          subtitle="Cumulative, settled across the last two weeks"
+          right={
+            <span className="d-num text-[13px] font-semibold" style={{ color: "var(--d-ok)" }}>
+              {inr(m.recovered_inr)}
+            </span>
+          }
+        />
+        <div className="px-3 pb-2">
+          <AreaChart data={series} color="var(--d-ok)" />
+        </div>
+      </Card>
+
+      {/* By class · Channels · Compliance */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card>
+          <CardHeader title="Recovered by Class" subtitle="Share of won revenue" />
+          <div className="flex items-center gap-5 px-5 pb-5">
+            <Donut
+              segments={classSegments}
+              centerValue={inr(m.recovered_inr, { compact: true })}
+              centerLabel="won"
+            />
+            <ul className="flex-1 space-y-1.5">
+              {[1, 2, 3, 4].map((n) => {
+                const c = m.by_class[String(n)];
+                if (!c) return null;
+                return (
+                  <li key={n} className="flex items-center justify-between text-[12px]">
+                    <span className="flex items-center gap-2">
+                      <span
+                        className="h-2.5 w-2.5 rounded-[3px]"
+                        style={{ background: CLASS_COLOR[n] }}
+                      />
+                      <span style={{ color: "var(--d-muted)" }}>Class {n}</span>
+                    </span>
+                    <span className="d-num">{pct(c.recovery_rate)}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader title="Channel Effectiveness" subtitle="Dispatched vs recovered" />
+          <div className="px-5 pb-5">
+            {channelRows.length ? (
+              <HBarList rows={channelRows} />
+            ) : (
+              <p className="text-[12px]" style={{ color: "var(--d-faint)" }}>
+                No dispatches yet.
               </p>
-            </div>
-          ) : stream.phase === "connecting" ? (
-            <p className="relative z-10 font-mono text-xs text-muted">
-              {t.mission.connecting}{" "}
-              <span className="blink text-blue">▍</span>
-            </p>
-          ) : (
-            <div className="absolute inset-0 z-10">
-              <RecoveryGraph
-                reachedNodes={stream.reachedNodes}
-                activeNode={stream.activeNode}
-                accent={accent}
-              />
-            </div>
-          )}
+            )}
+          </div>
+        </Card>
 
-          {/* Recovered-money overlay — the headline metric */}
-          {stream.metrics ? (
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-              className="absolute bottom-6 left-6 z-20 flex gap-6 rounded-xl border border-white/10 bg-black/50 px-6 py-4 backdrop-blur"
-            >
-              <div>
-                <p className="wire-label">{t.mission.recovered}</p>
-                <p className="display mt-1 text-2xl text-fg">
-                  ₹{Math.round(stream.metrics.recovered_inr).toLocaleString("en-IN")}
-                </p>
-              </div>
-              <div className="border-l border-white/10 pl-6">
-                <p className="wire-label">{t.mission.recoveryRate}</p>
-                <p className="display mt-1 text-2xl" style={{ color: accent }}>
-                  {Math.round(stream.metrics.grrr * 100)}%
-                </p>
-              </div>
-            </motion.div>
-          ) : null}
-        </div>
-      </section>
-
-      {/* Right 30% — Audit Trail Terminal */}
-      <section className="flex h-1/2 w-full flex-col md:h-full md:w-[30%]">
-        <div className="flex items-center justify-between border-b border-white/10 bg-black/40 px-4 py-3">
-          <h2 className="wire-label">{t.mission.terminal}</h2>
-          <span className="flex items-center gap-1.5 rounded bg-blue/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-cyan">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan" />
-            {t.mission.live}
-          </span>
-        </div>
-        <div className="flex-1 overflow-hidden">
-          <AuditTerminal
-            lines={stream.lines}
-            phase={stream.phase}
-            awaitingLabel={t.mission.awaiting}
+        <Card>
+          <CardHeader
+            title="Compliance Stops"
+            subtitle="Deterministic stopping rules fired"
+            right={
+              <Chip tone={{ fg: "var(--d-slate)", soft: "var(--d-slate-soft)" }}>
+                {m.counts.escalations} escalated
+              </Chip>
+            }
           />
-        </div>
-      </section>
-    </main>
-  );
-}
-
-function MissionControlContent() {
-  const params = useSearchParams();
-  const classId = Number(params.get("class") ?? "1");
-  // Remount per class so the stream resets cleanly (no setState-in-effect).
-  return <LiveSession key={classId} classId={classId} />;
-}
-
-export default function MissionControl() {
-  return (
-    <Suspense
-      fallback={
-        <div className="flex h-screen items-center justify-center font-mono text-sm text-muted">
-          Loading simulator…
-        </div>
-      }
-    >
-      <MissionControlContent />
-    </Suspense>
+          <div className="px-5 pb-5">
+            {ruleRows.length ? (
+              <HBarList rows={ruleRows} />
+            ) : (
+              <p className="text-[12px]" style={{ color: "var(--d-faint)" }}>
+                No stopping rules fired.
+              </p>
+            )}
+          </div>
+        </Card>
+      </div>
+    </div>
   );
 }

@@ -73,7 +73,7 @@ export default function DemoHub() {
                 }}
               >
                 <Link
-                  href={`/mission-control?class=${fc.id}`}
+                  href={`/mission-control/live?class=${fc.id}`}
                   className="block h-full"
                 >
                   <article
