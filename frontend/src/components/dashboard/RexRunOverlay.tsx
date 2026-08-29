@@ -36,6 +36,13 @@ export default function RexRunOverlay({ run }: { run: Run }) {
     if (el) el.scrollTop = el.scrollHeight;
   }, [run.feed.length]);
 
+  // Auto-dismiss 4s after the run finishes, so the user needn't close it by hand.
+  useEffect(() => {
+    if (run.phase !== "done") return;
+    const t = setTimeout(() => run.reset(), 4000);
+    return () => clearTimeout(t);
+  }, [run.phase, run.reset]);
+
   const open = run.phase !== "idle";
 
   const line = (it: FeedItem): { label: string; text?: string } => {
