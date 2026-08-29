@@ -52,7 +52,7 @@ interface IntroState {
 }
 
 function build(): IntroState {
-  const formed = sampleText("REX");
+  const formed = sampleText("R.E.X");
   const n = formed.length / 3;
   const scatter = new Float32Array(n * 3);
   const rands = new Float32Array(n);
