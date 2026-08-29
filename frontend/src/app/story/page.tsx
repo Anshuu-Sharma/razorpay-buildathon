@@ -14,7 +14,22 @@ export default function StoryPage() {
   useEffect(() => {
     const el = document.documentElement;
     el.classList.add("theme-light");
-    return () => el.classList.remove("theme-light");
+
+    // Start the story at the top, instantly. Prevent the browser from restoring
+    // the landing page's scroll offset onto this (very tall) route, and disable
+    // smooth scrolling so the reset doesn't animate as an auto-scroll.
+    const prevBehavior = el.style.scrollBehavior;
+    const prevRestore =
+      "scrollRestoration" in history ? history.scrollRestoration : undefined;
+    el.style.scrollBehavior = "auto";
+    if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+    window.scrollTo(0, 0);
+
+    return () => {
+      el.classList.remove("theme-light");
+      el.style.scrollBehavior = prevBehavior;
+      if (prevRestore !== undefined) history.scrollRestoration = prevRestore;
+    };
   }, []);
 
   return (
