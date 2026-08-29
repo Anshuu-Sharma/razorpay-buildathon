@@ -78,6 +78,57 @@ def persona_for(index: int) -> dict:
     return PERSONAS[index % len(PERSONAS)]
 
 
+def build_call(
+    *,
+    failure_class: int,
+    name: str,
+    amount_inr: float,
+    persona: dict,
+) -> CallBeat:
+    """A short AI-voice-agent call transcript for a transaction (per class).
+
+    Used by the on-demand "Call" action so any transaction can be called, not
+    only the seeded ones. The transcript is what the simulated agent would say;
+    a live provider (Vapi / ElevenLabs / LiveKit) replaces this later.
+    """
+    rupees = f"₹{int(amount_inr):,}"
+    greet = persona["greet"]
+    first = name.split()[0]
+
+    scripts = {
+        1: [
+            (CallSpeaker.AGENT, f"Namaste {first} {greet}, REX se bol raha hoon. Aapke {rupees} payment mein ek technical glitch aa gaya tha — humari taraf se. Main abhi ek secure link bhej raha hoon.", 0),
+            (CallSpeaker.CUSTOMER, "Haan theek hai, bhej do.", 5),
+            (CallSpeaker.AGENT, "Bhej diya. Ek tap mein ho jayega, OTP ki zaroorat nahi.", 11),
+            (CallSpeaker.CUSTOMER, "Ok, kar deta hoon.", 16),
+        ],
+        2: [
+            (CallSpeaker.AGENT, f"Hello {first} {greet}, aapka {rupees} ka checkout OTP step pe ruk gaya tha. Main UPI Autopay ka ek 1-tap link bhej raha hoon.", 0),
+            (CallSpeaker.CUSTOMER, "Achha, wahi problem ho rahi thi.", 6),
+            (CallSpeaker.AGENT, "Koi baat nahi, is link se seedha ho jayega. Bhej diya WhatsApp pe.", 12),
+            (CallSpeaker.CUSTOMER, "Perfect, dekh leta hoon.", 18),
+        ],
+        3: [
+            (CallSpeaker.AGENT, f"Namaste {first} {greet}, aapka auto-pay mandate refresh karna tha. Ek chhota ₹2 test authorization bhej rahe hain.", 0),
+            (CallSpeaker.CUSTOMER, "Haan bhej do.", 6),
+            (CallSpeaker.AGENT, f"Ho gaya, mandate active hai. Salary date pe {rupees} apne aap cut ho jayega.", 12),
+            (CallSpeaker.CUSTOMER, "Badhiya, dhanyavaad.", 19),
+        ],
+        4: [
+            (CallSpeaker.AGENT, f"Namaste {first} {greet}, invoice ke {rupees} outstanding ke baare mein call kiya tha. Payment kab tak expect kar sakte hain?", 0),
+            (CallSpeaker.CUSTOMER, persona["p2p"], 7),
+            (CallSpeaker.AGENT, "Bilkul, main note kar leta hoon aur tab tak reminders rok deta hoon. Dhanyavaad!", 14),
+        ],
+    }
+    turns = [CallTurnBeat(sp, txt, off) for sp, txt, off in scripts.get(failure_class, scripts[1])]
+    return CallBeat(
+        status=CallStatus.COMPLETED,
+        duration_sec=(turns[-1].at_offset_sec + 6),
+        outcome="ai_voice_recovery",
+        turns=turns,
+    )
+
+
 def build_thread(
     *,
     failure_class: int,

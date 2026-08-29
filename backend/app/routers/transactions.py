@@ -25,6 +25,7 @@ from app.enums import (
     NodeName,
 )
 from app.models import AuditTrail, CallSession, CallTurn, Message, TransactionState
+from app.services.conversations import build_call, persona_for
 from app.services.drafting import draft_message
 
 router = APIRouter(tags=["transactions"])
@@ -213,28 +214,76 @@ def get_conversation(transaction_id: str, db: Session = Depends(get_db)) -> dict
         .order_by(CallSession.id.desc())
         .first()
     )
-    call = None
-    if session is not None:
-        turns = (
-            db.query(CallTurn).filter_by(call_session_id=session.id).order_by(CallTurn.seq).all()
-        )
-        call = {
-            "id": session.id,
-            "status": session.status.value,
-            "duration_sec": session.duration_sec,
-            "outcome": session.outcome,
-            "provider": session.provider,
-            "turns": [
-                {
-                    "speaker": t.speaker.value,
-                    "text": t.text,
-                    "seq": t.seq,
-                    "at_offset_sec": t.at_offset_sec,
-                }
-                for t in turns
-            ],
-        }
-    return {"messages": [_serialize_message(m) for m in messages], "call": call}
+    return {
+        "messages": [_serialize_message(m) for m in messages],
+        "call": _serialize_call(db, session) if session else None,
+    }
+
+
+def _serialize_call(db: Session, session: CallSession) -> dict:
+    turns = db.query(CallTurn).filter_by(call_session_id=session.id).order_by(CallTurn.seq).all()
+    return {
+        "id": session.id,
+        "status": session.status.value,
+        "duration_sec": session.duration_sec,
+        "outcome": session.outcome,
+        "provider": session.provider,
+        "started_at": session.started_at.isoformat(),
+        "turns": [
+            {"speaker": t.speaker.value, "text": t.text, "seq": t.seq, "at_offset_sec": t.at_offset_sec}
+            for t in turns
+        ],
+    }
+
+
+@router.get("/transactions/{transaction_id}/calls")
+def list_calls(transaction_id: str, db: Session = Depends(get_db)) -> dict:
+    """The call log for a transaction — every call, newest first, with transcript."""
+    _require_txn(db, transaction_id)
+    sessions = (
+        db.query(CallSession)
+        .filter_by(transaction_id=transaction_id)
+        .order_by(CallSession.id.desc())
+        .all()
+    )
+    return {"calls": [_serialize_call(db, s) for s in sessions]}
+
+
+@router.post("/transactions/{transaction_id}/call/start", status_code=status.HTTP_201_CREATED)
+def start_call(transaction_id: str, db: Session = Depends(get_db)) -> dict:
+    """Start a simulated AI-voice-agent call for a transaction.
+
+    A live provider (Vapi / ElevenLabs / LiveKit) replaces the transcript source
+    later; the response shape stays the same, so the call UI is provider-agnostic.
+    """
+    txn = _require_txn(db, transaction_id)
+    meta = txn.metadata_json or {}
+    beat = build_call(
+        failure_class=int(txn.failure_class),
+        name=meta.get("customer_name") or "there",
+        amount_inr=txn.amount_minor / 100,
+        persona=persona_for(txn.id or 0),
+    )
+    session = CallSession(
+        transaction_id=transaction_id,
+        status=beat.status,
+        duration_sec=beat.duration_sec,
+        outcome=beat.outcome,
+        provider="simulated",
+    )
+    db.add(session)
+    db.flush()
+    for turn in beat.turns:
+        db.add(CallTurn(
+            call_session_id=session.id,
+            speaker=turn.speaker,
+            text=turn.text,
+            seq=turn.at_offset_sec,
+            at_offset_sec=turn.at_offset_sec,
+        ))
+    db.commit()
+    db.refresh(session)
+    return _serialize_call(db, session)
 
 
 class SendMessageBody(BaseModel):

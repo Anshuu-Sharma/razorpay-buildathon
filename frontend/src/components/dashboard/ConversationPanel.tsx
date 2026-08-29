@@ -132,7 +132,7 @@ export default function ConversationPanel({
               ) : channel === "whatsapp" ? (
                 <WhatsAppThread messages={data?.messages ?? []} customerName={customerName} />
               ) : (
-                <CallView call={data?.call ?? null} customerName={customerName} />
+                <CallView txnId={txnId} customerName={customerName} />
               )}
             </PhoneFrame>
           </div>
@@ -185,11 +185,7 @@ export default function ConversationPanel({
                 {c.hint}
               </p>
             </div>
-          ) : (
-            <p className="mx-auto mt-4 max-w-[340px] text-center text-[11.5px]" style={{ color: "var(--d-faint)" }}>
-              {c.callSoon}
-            </p>
-          )}
+          ) : null}
         </div>
       </motion.aside>
     </motion.div>

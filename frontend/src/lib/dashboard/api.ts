@@ -1,6 +1,7 @@
 import { API_BASE } from "@/lib/api";
 import type {
   AuditList,
+  CallData,
   Conversation,
   ConversationMessage,
   EscalationTicket,
@@ -85,6 +86,12 @@ export const draftMessage = (id: string, prompt: string) =>
   postJson<{ draft: string }>(`/transactions/${encodeURIComponent(id)}/messages/draft`, {
     prompt,
   });
+
+export const startCall = (id: string) =>
+  postJson<CallData>(`/transactions/${encodeURIComponent(id)}/call/start`, {});
+
+export const fetchCalls = (id: string, signal?: AbortSignal) =>
+  getJson<{ calls: CallData[] }>(`/transactions/${encodeURIComponent(id)}/calls`, signal);
 
 export async function reseedDemo(): Promise<{ seeded: number }> {
   const res = await fetch(`${V1}/admin/seed`, { method: "POST" });

@@ -150,6 +150,7 @@ export interface CallData {
   duration_sec: number;
   outcome: string | null;
   provider: string | null;
+  started_at?: string;
   turns: CallTurnData[];
 }
 
