@@ -23,14 +23,37 @@ function StatusBadge({ status, d }: { status: string; d: DashStrings }) {
 const TH = "px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide";
 const TD = "px-3 py-2.5 align-middle";
 
+function WaIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.8 4.9-1.3A10 10 0 1 0 12 2Zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-1.7-.1-.4-.1-1-.3-1.6-.6-2.9-1.2-4.7-4.1-4.9-4.3-.1-.2-1.1-1.5-1.1-2.8 0-1.3.7-2 .9-2.2.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 1.9c.1.2.1.3 0 .5l-.4.5c-.2.2-.3.3-.1.6.2.3.8 1.3 1.7 2 1.2.9 2 1.2 2.3 1.3.2.1.4.1.5-.1l.6-.7c.2-.2.3-.2.6-.1l1.8.9c.3.1.4.2.5.3.1.2.1.6-.1 1.1Z" />
+    </svg>
+  );
+}
+function CallIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M4 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L16 18l5 2v4a2 2 0 0 1-2 2A18 18 0 0 1 2 8a2 2 0 0 1 2-2Z" transform="translate(-1 -3) scale(0.95)" />
+    </svg>
+  );
+}
+
+export type OpenConversation = (
+  txnId: string,
+  channel: "whatsapp" | "call",
+  name: string
+) => void;
+
 export default function TransactionTable({
   rows,
   onSelect,
   showClass = true,
+  onOpenConversation,
 }: {
   rows: TransactionRow[];
   onSelect: (id: string) => void;
   showClass?: boolean;
+  onOpenConversation?: OpenConversation;
 }) {
   const { d } = useDash();
   const col = d.txns.col;
@@ -56,6 +79,7 @@ export default function TransactionTable({
             <th className={TH}>{col.channel}</th>
             <th className={`${TH} text-right`}>{col.ttr}</th>
             <th className={`${TH} text-right`}>{col.when}</th>
+            {onOpenConversation ? <th className={`${TH} text-center`} /> : null}
           </tr>
         </thead>
         <tbody>
@@ -116,6 +140,36 @@ export default function TransactionTable({
                 <td className={`${TD} text-right text-[12px]`} style={{ color: "var(--d-faint)" }}>
                   {relTime(r.created_at, d)}
                 </td>
+                {onOpenConversation ? (
+                  <td className={`${TD} whitespace-nowrap text-center`}>
+                    <span className="inline-flex items-center gap-1.5">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenConversation(r.transaction_id, "whatsapp", r.customer_name ?? "Customer");
+                        }}
+                        className="grid h-7 w-7 place-items-center rounded-md transition-colors"
+                        style={{ color: "#25d366", background: "rgba(37,211,102,0.1)" }}
+                        title="WhatsApp"
+                        aria-label="WhatsApp"
+                      >
+                        <WaIcon />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenConversation(r.transaction_id, "call", r.customer_name ?? "Customer");
+                        }}
+                        className="grid h-7 w-7 place-items-center rounded-md transition-colors"
+                        style={{ color: "var(--d-accent)", background: "var(--d-accent-soft)" }}
+                        title="Call"
+                        aria-label="Call"
+                      >
+                        <CallIcon />
+                      </button>
+                    </span>
+                  </td>
+                ) : null}
               </tr>
             );
           })}

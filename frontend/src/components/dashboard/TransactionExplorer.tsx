@@ -6,10 +6,12 @@ import { fetchTransactions } from "@/lib/dashboard/api";
 import { useDash } from "@/lib/dashboard/i18n";
 import { useDashboardRefresh } from "@/lib/dashboard/refresh";
 import type { LifecycleStatus, TransactionRow } from "@/lib/dashboard/types";
+import { CLASS_COLOR } from "@/lib/dashboard/status";
 import { Card } from "./Card";
 import { ErrorState, Loading } from "./PageState";
-import TransactionTable from "./TransactionTable";
+import TransactionTable, { type OpenConversation } from "./TransactionTable";
 import TransactionDrawer from "./TransactionDrawer";
+import { ConversationPanelHost } from "./ConversationPanel";
 
 const STATUSES: LifecycleStatus[] = [
   "RECOVERED",
@@ -64,6 +66,12 @@ export default function TransactionExplorer({ fixedClass }: { fixedClass?: numbe
   const [type, setType] = useState("");
   const [status, setStatus] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
+  const [convo, setConvo] = useState<
+    { txnId: string; name: string; channel: "whatsapp" | "call" } | null
+  >(null);
+
+  const openConversation: OpenConversation = (txnId, channel, name) =>
+    setConvo({ txnId, name, channel });
 
   const rows: TransactionRow[] = useMemo(() => {
     let items = data?.items ?? [];
@@ -125,10 +133,24 @@ export default function TransactionExplorer({ fixedClass }: { fixedClass?: numbe
           </span>
         </div>
 
-        <TransactionTable rows={rows} onSelect={setSelected} showClass={!fixedClass} />
+        <TransactionTable
+          rows={rows}
+          onSelect={setSelected}
+          showClass={!fixedClass}
+          onOpenConversation={fixedClass ? openConversation : undefined}
+        />
       </Card>
 
       <TransactionDrawer id={selected} onClose={() => setSelected(null)} />
+
+      <ConversationPanelHost
+        open={convo !== null}
+        txnId={convo?.txnId ?? ""}
+        customerName={convo?.name ?? ""}
+        channel={convo?.channel ?? "whatsapp"}
+        accent={fixedClass ? CLASS_COLOR[fixedClass] : "var(--d-accent)"}
+        onClose={() => setConvo(null)}
+      />
     </>
   );
 }

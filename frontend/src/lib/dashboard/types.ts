@@ -125,6 +125,39 @@ export interface EscalationTicket {
   created_at: string;
 }
 
+export interface ConversationMessage {
+  id: number;
+  channel: string;
+  direction: "OUTBOUND" | "INBOUND";
+  sender: "AGENT" | "CUSTOMER" | "SYSTEM";
+  body: string;
+  status: "SENT" | "DELIVERED" | "READ";
+  seq: number;
+  meta: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface CallTurnData {
+  speaker: "AGENT" | "CUSTOMER";
+  text: string;
+  seq: number;
+  at_offset_sec: number;
+}
+
+export interface CallData {
+  id: number;
+  status: string;
+  duration_sec: number;
+  outcome: string | null;
+  provider: string | null;
+  turns: CallTurnData[];
+}
+
+export interface Conversation {
+  messages: ConversationMessage[];
+  call: CallData | null;
+}
+
 export interface PolicyResponse {
   policy: {
     max_discount_pct: number;

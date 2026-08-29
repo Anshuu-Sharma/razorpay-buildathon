@@ -1,6 +1,8 @@
 import { API_BASE } from "@/lib/api";
 import type {
   AuditList,
+  Conversation,
+  ConversationMessage,
   EscalationTicket,
   Metrics,
   PolicyResponse,
@@ -59,6 +61,30 @@ export const fetchEscalations = (signal?: AbortSignal) =>
 
 export const fetchPolicy = (signal?: AbortSignal) =>
   getJson<PolicyResponse>("/policy", signal);
+
+export const fetchConversation = (id: string, signal?: AbortSignal) =>
+  getJson<Conversation>(`/transactions/${encodeURIComponent(id)}/conversation`, signal);
+
+async function postJson<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${V1}${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return (await res.json()) as T;
+}
+
+export const sendMessage = (id: string, body: string, aiDrafted = false) =>
+  postJson<ConversationMessage>(`/transactions/${encodeURIComponent(id)}/messages`, {
+    body,
+    ai_drafted: aiDrafted,
+  });
+
+export const draftMessage = (id: string, prompt: string) =>
+  postJson<{ draft: string }>(`/transactions/${encodeURIComponent(id)}/messages/draft`, {
+    prompt,
+  });
 
 export async function reseedDemo(): Promise<{ seeded: number }> {
   const res = await fetch(`${V1}/admin/seed`, { method: "POST" });
