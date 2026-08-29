@@ -2,8 +2,8 @@
 
 import { useCallback } from "react";
 import { useParams } from "next/navigation";
-import { Card } from "@/components/dashboard/Card";
 import MiniStat from "@/components/dashboard/MiniStat";
+import ClassInfoButton from "@/components/dashboard/ClassInfoButton";
 import TransactionExplorer from "@/components/dashboard/TransactionExplorer";
 import { ErrorState, Loading } from "@/components/dashboard/PageState";
 import { useApi } from "@/hooks/useApi";
@@ -36,15 +36,24 @@ export default function ClassPage() {
   return (
     <div className="mx-auto max-w-[1220px] space-y-5 p-5 md:p-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <span className="h-8 w-1.5 rounded-full" style={{ background: color }} />
-        <div>
-          <h1 className="text-lg font-semibold tracking-tight">
-            {d.classWord} {id} · {d.classLabel[id]}
-          </h1>
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 h-8 w-1.5 rounded-full" style={{ background: color }} />
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-semibold tracking-tight">{d.classLabel[id]}</h1>
+            <span
+              className="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+              style={{ background: "var(--d-surface-2)", color: "var(--d-faint)" }}
+            >
+              {cp.classTag} {id}
+            </span>
+          </div>
           <p className="mt-0.5 text-[12.5px]" style={{ color: "var(--d-muted)" }}>
             {solve.trigger}
           </p>
+        </div>
+        <div className="ml-auto">
+          <ClassInfoButton classId={id} color={color} />
         </div>
       </div>
 
@@ -69,35 +78,6 @@ export default function ClassPage() {
               </div>
             );
           })()}
-
-          {/* How REX solves this class */}
-          <Card className="p-5" style={{ borderLeft: `3px solid ${color}` }}>
-            <p className="d-label" style={{ color }}>
-              {cp.how}
-            </p>
-            <div className="mt-2 grid gap-3 md:grid-cols-3">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--d-faint)" }}>
-                  {cp.playbook}
-                </p>
-                <p className="mt-1 text-[13px] font-medium">{solve.playbook}</p>
-              </div>
-              <div className="md:col-span-2">
-                <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--d-faint)" }}>
-                  {cp.mechanism}
-                </p>
-                <p className="mt-1 text-[13px]" style={{ color: "var(--d-muted)" }}>
-                  {solve.mechanism}
-                </p>
-              </div>
-            </div>
-            <div className="mt-3 rounded-lg px-3 py-2 text-[12px]" style={{ background: "var(--d-surface-2)" }}>
-              <span className="font-semibold" style={{ color: "var(--d-ink)" }}>
-                {cp.stop}{" "}
-              </span>
-              <span style={{ color: "var(--d-muted)" }}>{solve.stop}</span>
-            </div>
-          </Card>
 
           {/* Class-filtered ledger */}
           <TransactionExplorer fixedClass={id} />

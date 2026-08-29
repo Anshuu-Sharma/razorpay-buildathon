@@ -15,7 +15,7 @@ const DASH = {
     exit: "← Exit to site",
     soon: "Soon",
     classWord: "Class",
-    groups: { classes: "Failure classes", compliance: "Compliance" },
+    groups: { classes: "Recovery categories", compliance: "Compliance" },
     nav: {
       overview: "Overview",
       transactions: "Transactions",
@@ -107,6 +107,10 @@ const DASH = {
       playbook: "Playbook",
       mechanism: "Mechanism",
       stop: "Stopping rule ·",
+      infoAria: "About this category",
+      infoProblem: "The problem",
+      infoSolution: "How REX recovers it",
+      classTag: "Class",
       mRecovered: "Recovered",
       mAtRisk: "At-risk",
       mRate: "Recovery rate",
@@ -193,19 +197,21 @@ const DASH = {
       NON_RECOVERABLE: "Non-recoverable",
     },
     classLabel: {
-      1: "Real-Time Degradation",
-      2: "Checkout Abandonment",
-      3: "Subscription & Mandate",
-      4: "B2B Receivables",
+      1: "Failed Payments",
+      2: "Abandoned Checkouts",
+      3: "Failed Subscriptions",
+      4: "Overdue Invoices",
     } as Record<number, string>,
     classShort: {
-      1: "Degradation",
-      2: "Abandonment",
-      3: "Mandate",
-      4: "Receivables",
+      1: "Failed Payments",
+      2: "Abandoned Checkouts",
+      3: "Subscriptions",
+      4: "Overdue Invoices",
     } as Record<number, string>,
     solve: {
       1: {
+        problem:
+          "A one-time payment fails mid-transaction — a gateway timeout or bank/rail outage, not the customer's fault.",
         trigger: "Acquirer switch timeout / issuer down",
         playbook: "Reroute rail → pre-auth link",
         mechanism:
@@ -213,6 +219,8 @@ const DASH = {
         stop: "Late settlement kills the fallback (no double charge).",
       },
       2: {
+        problem:
+          "A high-intent customer drops off right at the payment step, usually stuck at the OTP / 3DS screen.",
         trigger: "OTP / 3DS drop-off at the modal",
         playbook: "UPI Autopay nudge",
         mechanism:
@@ -220,6 +228,8 @@ const DASH = {
         stop: "Cross-device completion → go silent.",
       },
       3: {
+        problem:
+          "A recurring auto-debit fails — most often a low balance in the days just before the customer's salary lands.",
         trigger: "Auto-debit fails on pre-salary low balance",
         playbook: "Salary-cycle sequencer",
         mechanism:
@@ -227,13 +237,15 @@ const DASH = {
         stop: "RBI cap: at most 3 auto-debit retries; explicit cancel stops instantly.",
       },
       4: {
+        problem:
+          "A B2B invoice sails past its due date and needs chasing for a firm, committed payment date.",
         trigger: "Overdue Net-30 B2B invoice",
         playbook: "Promise-to-Pay tracker",
         mechanism:
           "WhatsApps the AP team, extracts a hard Promise-to-Pay date from the reply, and holds dunning until that date.",
         stop: "A dispute freezes automation and escalates to a human.",
       },
-    } as Record<number, { trigger: string; playbook: string; mechanism: string; stop: string }>,
+    } as Record<number, { problem: string; trigger: string; playbook: string; mechanism: string; stop: string }>,
     rel: { now: "just now", m: "m ago", h: "h ago", d: "d ago" },
     dur: { s: "s", m: "m" },
     convo: {
@@ -270,7 +282,7 @@ const DASH = {
     exit: "← साइट पर लौटें",
     soon: "जल्द",
     classWord: "श्रेणी",
-    groups: { classes: "विफलता श्रेणियाँ", compliance: "अनुपालन" },
+    groups: { classes: "वसूली श्रेणियाँ", compliance: "अनुपालन" },
     nav: {
       overview: "अवलोकन",
       transactions: "लेन-देन",
@@ -362,6 +374,10 @@ const DASH = {
       playbook: "प्लेबुक",
       mechanism: "तंत्र",
       stop: "स्टॉपिंग नियम ·",
+      infoAria: "इस श्रेणी के बारे में",
+      infoProblem: "समस्या",
+      infoSolution: "REX इसे कैसे वसूलता है",
+      classTag: "श्रेणी",
       mRecovered: "वसूला",
       mAtRisk: "जोखिम में",
       mRate: "वसूली दर",
@@ -448,19 +464,21 @@ const DASH = {
       NON_RECOVERABLE: "अवसूली-योग्य",
     },
     classLabel: {
-      1: "रीयल-टाइम गिरावट",
-      2: "चेकआउट परित्याग",
-      3: "सब्सक्रिप्शन और मैंडेट",
-      4: "B2B प्राप्य",
+      1: "असफल भुगतान",
+      2: "छोड़े गए चेकआउट",
+      3: "असफल सब्सक्रिप्शन",
+      4: "बकाया इनवॉइस",
     } as Record<number, string>,
     classShort: {
-      1: "गिरावट",
-      2: "परित्याग",
-      3: "मैंडेट",
-      4: "प्राप्य",
+      1: "असफल भुगतान",
+      2: "छोड़े गए चेकआउट",
+      3: "सब्सक्रिप्शन",
+      4: "बकाया इनवॉइस",
     } as Record<number, string>,
     solve: {
       1: {
+        problem:
+          "एक बार का भुगतान बीच में विफल — गेटवे टाइमआउट या बैंक/रेल आउटेज, ग्राहक की गलती नहीं।",
         trigger: "एक्वायरर स्विच टाइमआउट / इशूअर डाउन",
         playbook: "रेल री-रूट → प्री-ऑथ लिंक",
         mechanism:
@@ -468,6 +486,8 @@ const DASH = {
         stop: "देर से निपटान फॉलबैक रोक देता है (कोई दोहरा शुल्क नहीं)।",
       },
       2: {
+        problem:
+          "उच्च-इरादे वाला ग्राहक भुगतान चरण पर ही छूट जाता है, अक्सर OTP / 3DS स्क्रीन पर अटककर।",
         trigger: "मॉडल पर OTP / 3DS ड्रॉप-ऑफ़",
         playbook: "UPI ऑटोपे नज",
         mechanism:
@@ -475,6 +495,8 @@ const DASH = {
         stop: "क्रॉस-डिवाइस पूर्णता → चुप हो जाना।",
       },
       3: {
+        problem:
+          "आवर्ती ऑटो-डेबिट विफल — अक्सर सैलरी आने से ठीक पहले के दिनों में कम बैलेंस के कारण।",
         trigger: "सैलरी से पहले कम बैलेंस पर ऑटो-डेबिट विफल",
         playbook: "सैलरी-साइकल सीक्वेंसर",
         mechanism:
@@ -482,13 +504,15 @@ const DASH = {
         stop: "RBI सीमा: अधिकतम 3 ऑटो-डेबिट रीट्राई; स्पष्ट रद्दीकरण तुरंत रोकता है।",
       },
       4: {
+        problem:
+          "B2B इनवॉइस अपनी नियत तिथि पार कर जाता है और पक्की, प्रतिबद्ध भुगतान तिथि के लिए फॉलो-अप चाहिए।",
         trigger: "अतिदेय Net-30 B2B इनवॉइस",
         playbook: "प्रॉमिस-टू-पे ट्रैकर",
         mechanism:
           "AP टीम को WhatsApp करता है, उत्तर से पक्की प्रॉमिस-टू-पे तिथि निकालता है, और उस तिथि तक तक़ाज़ा रोक देता है।",
         stop: "विवाद स्वचालन को फ्रीज़ कर मानव को एस्केलेट करता है।",
       },
-    } as Record<number, { trigger: string; playbook: string; mechanism: string; stop: string }>,
+    } as Record<number, { problem: string; trigger: string; playbook: string; mechanism: string; stop: string }>,
     rel: { now: "अभी", m: "मि पहले", h: "घं पहले", d: "दि पहले" },
     dur: { s: "से", m: "मि" },
     convo: {

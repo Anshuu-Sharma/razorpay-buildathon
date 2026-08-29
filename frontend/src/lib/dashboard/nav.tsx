@@ -93,7 +93,9 @@ export const NAV: NavGroup[] = [
         icon: icons.transactions,
         ready: true,
       },
-      { navKey: "live", href: "/mission-control/live", icon: icons.live, ready: true },
+      // Live Run is intentionally not in the sidebar — the conversation panels +
+      // audit timeline are the concrete "watch it happen" surfaces now. The
+      // /mission-control/live route stays intact (story/demo CTAs still open it).
     ],
   },
   {
@@ -137,9 +139,10 @@ export const NAV: NavGroup[] = [
   },
 ];
 
-/** Localized label for a nav item. */
+/** Localized label for a nav item. Class tabs read as plain problem names
+ * (e.g. "Overdue Invoices") — the internal "Class N" number is not shown here. */
 export function navLabel(item: NavItem, d: DashStrings): string {
-  if (item.classId) return `${d.classWord} ${item.classId} · ${d.classShort[item.classId]}`;
+  if (item.classId) return d.classShort[item.classId];
   return d.nav[item.navKey];
 }
 

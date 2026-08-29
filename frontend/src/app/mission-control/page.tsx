@@ -158,9 +158,7 @@ export default function OverviewPage() {
                         className="h-2.5 w-2.5 rounded-[3px]"
                         style={{ background: CLASS_COLOR[n] }}
                       />
-                      <span style={{ color: "var(--d-muted)" }}>
-                        {d.classWord} {n}
-                      </span>
+                      <span style={{ color: "var(--d-muted)" }}>{d.classShort[n]}</span>
                     </span>
                     <span className="d-num">{pct(c.recovery_rate)}</span>
                   </li>
