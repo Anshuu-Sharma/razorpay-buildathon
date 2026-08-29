@@ -11,22 +11,22 @@ import type { Pose } from "@/lib/story";
  */
 
 const FILE: Record<Pose, string> = {
-  wave: "naya-wave.svg",
-  worried: "naya-worried.svg",
-  point: "naya-point.svg",
-  facepalm: "naya-facepalm.svg",
-  calendar: "naya-calendar.svg",
-  tired: "naya-tired.svg",
-  hopeful: "naya-hopeful.svg",
+  wave: "naya-wave.png",
+  worried: "naya-worried.png",
+  confused: "naya-confused.png",
+  facepalm: "naya-facepalm.png",
+  hips: "naya-hips.png",
+  tired: "naya-tired.png",
+  hopeful: "naya-hopeful.png",
 };
 
 // Rough gesture hint for the placeholder: the raised-arm angle per pose.
 const ARM_ANGLE: Record<Pose, number> = {
   wave: -55,
   worried: 20,
-  point: -80,
+  confused: -35,
   facepalm: -120,
-  calendar: -40,
+  hips: 30,
   tired: 15,
   hopeful: -70,
 };

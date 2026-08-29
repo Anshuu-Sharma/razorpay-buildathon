@@ -13,9 +13,9 @@
 export type Pose =
   | "wave"
   | "worried"
-  | "point"
+  | "confused"
   | "facepalm"
-  | "calendar"
+  | "hips"
   | "tired"
   | "hopeful";
 
@@ -47,7 +47,7 @@ export const STORY: StoryBeat[] = [
   },
   {
     id: "class-1",
-    pose: "point",
+    pose: "confused",
     lines: [
       "During my Diwali sale, Meera tried to pay — the bank's UPI switch timed out.",
       "She did everything right… and now she thinks I double-charged her.",
@@ -65,7 +65,7 @@ export const STORY: StoryBeat[] = [
   },
   {
     id: "class-3",
-    pose: "calendar",
+    pose: "hips",
     lines: [
       "My subscribers' auto-debits fail at month-end — salary's not in yet.",
       "I retry the next morning. Fails again. They cancel. Every. Single. Month.",
