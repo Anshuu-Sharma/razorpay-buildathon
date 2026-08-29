@@ -140,7 +140,7 @@ export default function StoryScene() {
                 className={
                   textOnRight
                     ? "w-full max-w-md px-6 md:ml-[58%] md:max-w-sm md:px-0 md:pr-[3vw]"
-                    : "w-full max-w-md px-6 md:mr-[58%] md:max-w-sm md:px-0 md:pl-[3vw]"
+                    : "w-full max-w-md px-6 md:mr-[58%] md:ml-auto md:max-w-sm md:px-0 md:pl-[3vw] md:text-right"
                 }
               >
                 <SpeechCloud lines={b.lines} />
