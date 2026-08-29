@@ -5,11 +5,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useApi } from "@/hooks/useApi";
 import { addNote, fetchTransaction, setStatus } from "@/lib/dashboard/api";
 import { humanize, inr, pct } from "@/lib/dashboard/format";
+import { describeAudit } from "@/lib/dashboard/activity";
 import { useDash, durTime } from "@/lib/dashboard/i18n";
 import { useDashboardRefresh } from "@/lib/dashboard/refresh";
 import { useRexRun } from "@/lib/dashboard/rexrun";
 import { CLASS_COLOR, aiTagTone, statusTone } from "@/lib/dashboard/status";
-import type { AuditEntry, LifecycleStatus } from "@/lib/dashboard/types";
+import type { LifecycleStatus } from "@/lib/dashboard/types";
 import type { DashStrings } from "@/lib/dashboard/i18n";
 
 const OPERATOR_STATUSES: LifecycleStatus[] = [
@@ -107,26 +108,6 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
       <p className="mt-0.5 text-[13px] font-medium" style={{ color: "var(--d-ink)" }}>
         {value}
       </p>
-    </div>
-  );
-}
-
-function PayloadLine({ entry }: { entry: AuditEntry }) {
-  const p = entry.payload ?? {};
-  const keys = Object.keys(p);
-  if (!keys.length) return null;
-  return (
-    <div className="mt-1.5 rounded-md p-2 text-[11.5px]" style={{ background: "var(--d-surface-2)" }}>
-      {keys.map((k) => (
-        <div key={k} className="flex gap-2">
-          <span className="d-num shrink-0" style={{ color: "var(--d-faint)" }}>
-            {k}
-          </span>
-          <span className="break-all" style={{ color: "var(--d-muted)" }}>
-            {String((p as Record<string, unknown>)[k])}
-          </span>
-        </div>
-      ))}
     </div>
   );
 }
@@ -248,36 +229,47 @@ function Body({ id, d, onClose }: { id: string; d: DashStrings; onClose: () => v
         </div>
       ) : null}
 
-      {/* Audit timeline */}
+      {/* Activity — the human-readable story of what REX did */}
       <div>
-        <p className="d-label mb-2">{d.drawer.timeline(t.audit_trail.length)}</p>
+        <p className="d-label mb-2">
+          {d.activity.title} · {t.audit_trail.length}
+        </p>
         <ol className="space-y-3">
-          {t.audit_trail.map((e, i) => (
-            <li key={e.id} className="relative pl-5">
-              <span
-                className="absolute left-0 top-1 h-2.5 w-2.5 rounded-full"
-                style={{
-                  background: e.outcome === "SUCCESS" ? "var(--d-ok)" : "var(--d-slate)",
-                }}
-              />
-              {i < t.audit_trail.length - 1 ? (
-                <span
-                  className="absolute left-[4.5px] top-3.5 h-[calc(100%+4px)] w-px"
-                  style={{ background: "var(--d-border)" }}
-                />
-              ) : null}
-              <div className="flex items-center justify-between">
-                <span className="text-[12.5px] font-semibold">{humanize(e.node_name)}</span>
-                <span className="d-num text-[10.5px]" style={{ color: "var(--d-faint)" }}>
-                  {new Date(e.timestamp).toLocaleTimeString("en-IN")}
-                </span>
-              </div>
-              <span className="text-[11.5px]" style={{ color: "var(--d-muted)" }}>
-                {humanize(e.action_type)} · {e.outcome.toLowerCase()}
-              </span>
-              <PayloadLine entry={e} />
-            </li>
-          ))}
+          {t.audit_trail.map((e, i) => {
+            const act = describeAudit(e, d);
+            const dot =
+              act.tone === "ok"
+                ? "var(--d-ok)"
+                : act.tone === "warn"
+                  ? "var(--d-warn)"
+                  : act.tone === "info"
+                    ? "var(--d-info)"
+                    : "var(--d-slate)";
+            return (
+              <li key={e.id} className="relative pl-6">
+                <span className="absolute left-0 top-0 text-[13px]">{act.icon}</span>
+                {i < t.audit_trail.length - 1 ? (
+                  <span
+                    className="absolute left-[7px] top-5 h-[calc(100%+2px)] w-px"
+                    style={{ background: "var(--d-border)" }}
+                  />
+                ) : null}
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="text-[12.5px] font-semibold" style={{ color: dot }}>
+                    {act.label}
+                  </span>
+                  <span className="d-num shrink-0 text-[10.5px]" style={{ color: "var(--d-faint)" }}>
+                    {new Date(e.timestamp).toLocaleTimeString("en-IN")}
+                  </span>
+                </div>
+                {act.detail ? (
+                  <p className="mt-0.5 text-[11.5px] leading-snug" style={{ color: "var(--d-muted)" }}>
+                    {act.detail}
+                  </p>
+                ) : null}
+              </li>
+            );
+          })}
         </ol>
       </div>
     </div>
