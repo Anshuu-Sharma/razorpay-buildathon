@@ -61,6 +61,26 @@ def test_blocks_amount_above_ceiling():
     assert decision.approved is False
 
 
+def test_amount_ceiling_ignores_non_money_actions():
+    # A WhatsApp/voice reminder moves no money, so the value of the underlying
+    # invoice is irrelevant - a large B2B receivable can still be nudged. The
+    # ceiling only gates actions that actually charge or pay out.
+    nudge = ProposedAction(
+        action=InterventionAction.SEND_WHATSAPP,
+        channel=InterventionChannel.WHATSAPP,
+        amount_minor=8_400_000,  # ₹84k invoice, far above the ceiling
+    )
+    assert _sandbox().validate(nudge).approved is True
+
+
+def test_amount_ceiling_still_blocks_a_large_charge():
+    charge = ProposedAction(
+        action=InterventionAction.RETRY_CHARGE,
+        amount_minor=8_400_000,
+    )
+    assert _sandbox().validate(charge).approved is False
+
+
 def test_prompt_injection_cannot_elevate_a_full_waiver():
     # Even if a jailbroken LLM proposes a 100% waiver, the deterministic gate
     # refuses it. Money cannot move outside policy regardless of the prompt.

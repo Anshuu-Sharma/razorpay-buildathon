@@ -17,6 +17,17 @@ from typing import Any
 
 from app.enums import InterventionAction, InterventionChannel
 
+# Actions that actually charge the customer or pay money out. The amount ceiling
+# only gates these - an outbound reminder (WhatsApp/voice) moves no money, so the
+# value of the underlying transaction is irrelevant to whether it may be sent.
+_MONEY_MOVING_ACTIONS = frozenset(
+    {
+        InterventionAction.GENERATE_PAYMENT_LINK.value,
+        InterventionAction.RETRY_CHARGE.value,
+        InterventionAction.OFFER_FEE_WAIVER.value,
+    }
+)
+
 _DEFAULT_POLICY_PATH = Path(__file__).resolve().parent.parent / "config" / "merchant_policy.json"
 
 
@@ -77,7 +88,8 @@ class PolicySandbox:
             )
 
         if (
-            self._max_amount_minor is not None
+            action.action_value in _MONEY_MOVING_ACTIONS
+            and self._max_amount_minor is not None
             and action.amount_minor is not None
             and action.amount_minor > self._max_amount_minor
         ):
