@@ -67,3 +67,13 @@ def test_by_class_is_enriched(db_session):
         assert "recovery_rate" in cls
         assert "top_playbook" in cls
         assert 0.0 <= cls["recovery_rate"] <= 1.0
+
+
+def test_class_specific_stopping_rules_now_fire(db_session):
+    from app.services.batch import seed_batch
+    seed_batch(db_session)
+    m = compute_metrics(db_session)
+    rules = m["stopping_rules_by_name"]
+    # The conversation-driven events wire these dormant rules to real triggers.
+    assert rules.get("NO_DOUBLE_CHARGE", 0) >= 1
+    assert rules.get("CROSS_DEVICE_COMPLETION", 0) >= 1

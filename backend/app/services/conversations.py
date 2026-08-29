@@ -153,6 +153,10 @@ def build_thread(
                 MsgBeat(IN, CUSTOMER, persona["ok"]),
                 MsgBeat(OUT, SYSTEM, f"Payment of {rupees} captured on the fallback rail ✓"),
             ]
+        elif outcome == "late_settlement":
+            t.messages += [
+                MsgBeat(OUT, SYSTEM, f"Original {rupees} settled late on the primary rail — fallback voided so you're not charged twice (NO_DOUBLE_CHARGE) ✓"),
+            ]
         return t
 
     if failure_class == 2:  # Checkout abandonment
@@ -165,6 +169,10 @@ def build_thread(
             t.messages += [
                 MsgBeat(IN, CUSTOMER, persona["ok"]),
                 MsgBeat(OUT, SYSTEM, f"Payment of {rupees} captured via UPI Autopay ✓"),
+            ]
+        elif outcome == "cross_device":
+            t.messages += [
+                MsgBeat(OUT, SYSTEM, f"Payment of {rupees} completed on another device — further reminders stopped (CROSS_DEVICE_COMPLETION) ✓"),
             ]
         elif outcome == "cancelled_optout":
             t.messages += [

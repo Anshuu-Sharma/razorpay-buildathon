@@ -19,10 +19,14 @@ from datetime import date, datetime, timedelta
 from typing import Literal
 
 from app.enums import (
+    ActionType,
     FailureClass,
     MessageDirection,
     MessageSender,
     MessageStatus,
+    NodeName,
+    Outcome,
+    StoppingRule,
     TransactionLifecycleState,
 )
 from app.models import (
@@ -35,15 +39,24 @@ from app.models import (
     TransactionState,
 )
 from app.orchestrator.graph import OrchestratorDeps, build_recovery_graph
+from app.services.audit import record_audit
 from app.services.conversations import build_thread, persona_for
 from app.services.diagnosis import Diagnosis, _DEFAULT_PLAYBOOK
 from app.services.nlp import extract_p2p_date
 from app.services.policy_sandbox import PolicySandbox
 from app.utils import utcnow
 
-Outcome = Literal[
-    "recovered", "inflight", "escalated_dispute", "cancelled_optout", "cancelled_rbi"
+CaseOutcome = Literal[
+    "recovered",
+    "inflight",
+    "escalated_dispute",
+    "cancelled_optout",
+    "cancelled_rbi",
+    "late_settlement",  # C1: original settles late → NO_DOUBLE_CHARGE
+    "cross_device",     # C2: paid on another device → CROSS_DEVICE_COMPLETION
 ]
+
+_RECOVERED_LIKE = {"recovered", "late_settlement", "cross_device"}
 
 # Per-class canonical trigger + a representative amount (paise) and a friendly
 # label for the AI classification chip.
@@ -95,7 +108,7 @@ _CONTACTS = [f"+9198{n:08d}" for n in range(len(_CUSTOMERS))]
 @dataclass
 class ScenarioSpec:
     failure_class: FailureClass
-    outcome: Outcome
+    outcome: CaseOutcome
     count: int
 
 
@@ -111,10 +124,12 @@ class ArchetypeSpec:
 # The default distribution: ~34 at-risk cases across the four classes plus
 # healthy/non-recoverable context. Tuned so no class is uniformly "recovered".
 DEFAULT_BATCH: list = [
-    ScenarioSpec(FailureClass.REALTIME_DEGRADATION, "recovered", 5),
+    ScenarioSpec(FailureClass.REALTIME_DEGRADATION, "recovered", 3),
+    ScenarioSpec(FailureClass.REALTIME_DEGRADATION, "late_settlement", 2),
     ScenarioSpec(FailureClass.REALTIME_DEGRADATION, "inflight", 2),
     ScenarioSpec(FailureClass.REALTIME_DEGRADATION, "escalated_dispute", 1),
-    ScenarioSpec(FailureClass.CHECKOUT_ABANDONMENT, "recovered", 6),
+    ScenarioSpec(FailureClass.CHECKOUT_ABANDONMENT, "recovered", 4),
+    ScenarioSpec(FailureClass.CHECKOUT_ABANDONMENT, "cross_device", 2),
     ScenarioSpec(FailureClass.CHECKOUT_ABANDONMENT, "inflight", 2),
     ScenarioSpec(FailureClass.CHECKOUT_ABANDONMENT, "cancelled_optout", 1),
     ScenarioSpec(FailureClass.SUBSCRIPTION_MANDATE, "recovered", 5),
@@ -270,11 +285,15 @@ def _seed_case(db, graph, item: ScenarioSpec, index: int) -> None:
     db.commit()
 
     profile = _CLASS_PROFILE[fc]
+    # A late original settlement authorises rather than captures on the fallback.
+    outcome_event = None
+    if item.outcome in _RECOVERED_LIKE:
+        outcome_event = "payment.authorized" if item.outcome == "late_settlement" else "payment.captured"
     state = {
         "transaction_id": txn.transaction_id,
         "failure_class": int(fc),
         "telemetry": {"event_type": profile["event_type"], "error_code": profile["error_code"]},
-        "outcome_event": "payment.captured" if item.outcome == "recovered" else None,
+        "outcome_event": outcome_event,
     }
     if item.outcome == "escalated_dispute":
         state["user_message"] = "I want to dispute this invoice, the amount is wrong."
@@ -282,7 +301,32 @@ def _seed_case(db, graph, item: ScenarioSpec, index: int) -> None:
         state["user_message"] = "please stop contacting me, band karo."
 
     graph.invoke(state)
+
+    # Wire the class-specific stopping rules to their triggering event, so they
+    # genuinely fire (and are counted + surfaced in the audit / compliance views).
+    if item.outcome == "late_settlement":
+        _record_stop(
+            db, txn.transaction_id, StoppingRule.NO_DOUBLE_CHARGE,
+            "Original payment settled late on the primary rail; fallback link voided.",
+        )
+    elif item.outcome == "cross_device":
+        _record_stop(
+            db, txn.transaction_id, StoppingRule.CROSS_DEVICE_COMPLETION,
+            "Customer completed payment on another device; outreach silenced.",
+        )
+
     _seed_conversation(db, txn, int(fc), item.outcome, index)
+
+
+def _record_stop(db, transaction_id: str, rule: StoppingRule, reason: str) -> None:
+    record_audit(
+        db,
+        transaction_id=transaction_id,
+        node_name=NodeName.RECONCILE,
+        action_type=ActionType.STATE_TRANSITION,
+        payload={"stopping_rule": rule.value, "reason": reason},
+        outcome=Outcome.SUCCESS,
+    )
 
 
 def _seed_conversation(db, txn: TransactionState, failure_class: int, outcome: str, index: int) -> None:
@@ -324,6 +368,16 @@ def _seed_conversation(db, txn: TransactionState, failure_class: int, outcome: s
         p2p_date = extract_p2p_date(thread.p2p_phrase, today=date.today())
         if p2p_date:
             txn.metadata_json = {**meta, "p2p_date": p2p_date}
+            # Surface the reactive hold in the audit timeline (WAITING_FOR_P2P).
+            record_audit(
+                db,
+                transaction_id=txn.transaction_id,
+                node_name=NodeName.WAIT,
+                action_type=ActionType.RETRY_SCHEDULED,
+                payload={"reason": "WAITING_FOR_P2P", "scheduled_for": p2p_date,
+                         "extracted_from": thread.p2p_phrase},
+                outcome=Outcome.SUCCESS,
+            )
             confirmations = [
                 (MessageSender.AGENT, f"Noted — we'll expect payment by {p2p_date}. Thank you! I'll hold reminders until then.", {"p2p_date": p2p_date}),
                 (MessageSender.SYSTEM, f"Dunning paused until {p2p_date} (WAITING_FOR_P2P).", None),
