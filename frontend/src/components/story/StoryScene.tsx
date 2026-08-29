@@ -2,7 +2,13 @@
 
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { AnimatePresence, motion, useScroll, useTransform } from "framer-motion";
+import {
+  AnimatePresence,
+  motion,
+  useMotionValueEvent,
+  useScroll,
+  useTransform,
+} from "framer-motion";
 import { STORY } from "@/lib/story";
 import Nayantara from "./Nayantara";
 import SpeechCloud from "./SpeechCloud";
@@ -20,11 +26,26 @@ const WEAVES = 3.5;
 export default function StoryScene() {
   const sceneRef = useRef<HTMLElement>(null);
   const [active, setActive] = useState(0);
+  const activeRef = useRef(0);
   const beat = STORY[active];
 
   const { scrollYProgress } = useScroll({
     target: sceneRef,
     offset: ["start start", "end end"],
+  });
+
+  // Drive the active beat (and thus the pose) straight off scroll progress, so
+  // the doodle swaps reliably as you scroll in either direction. Runs in a
+  // MotionValue event callback, not an effect body.
+  useMotionValueEvent(scrollYProgress, "change", (p) => {
+    const idx = Math.max(
+      0,
+      Math.min(STORY.length - 1, Math.floor(p * STORY.length))
+    );
+    if (idx !== activeRef.current) {
+      activeRef.current = idx;
+      setActive(idx);
+    }
   });
 
   // Continuous motion driven by scroll — the core of the "experience".
@@ -105,12 +126,7 @@ export default function StoryScene() {
         {STORY.map((b, i) => {
           const textOnRight = i % 2 === 0;
           return (
-            <motion.div
-              key={b.id}
-              onViewportEnter={() => setActive(i)}
-              viewport={{ margin: "-45% 0px -45% 0px", amount: 0.35 }}
-              className="flex min-h-screen items-center"
-            >
+            <div key={b.id} className="flex min-h-screen items-center">
               <div
                 className={
                   textOnRight
@@ -143,7 +159,7 @@ export default function StoryScene() {
                   </motion.div>
                 ) : null}
               </div>
-            </motion.div>
+            </div>
           );
         })}
       </div>
