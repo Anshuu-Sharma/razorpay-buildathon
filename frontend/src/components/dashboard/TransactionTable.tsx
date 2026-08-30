@@ -70,6 +70,7 @@ export default function TransactionTable({
       <table className="w-full border-collapse text-[13px]">
         <thead>
           <tr style={{ color: "var(--d-muted)", borderBottom: "1px solid var(--d-border)" }}>
+            <th className={`${TH} text-right`}>{col.serial}</th>
             <th className={TH}>{col.customer}</th>
             {showClass ? <th className={TH}>{col.class}</th> : null}
             <th className={TH}>{col.aiTag}</th>
@@ -95,6 +96,9 @@ export default function TransactionTable({
                 className="cursor-pointer transition-colors hover:bg-[var(--d-surface-2)]"
                 style={{ borderBottom: "1px solid var(--d-border)" }}
               >
+                <td className={`${TD} d-num text-right text-[12px]`} style={{ color: "var(--d-faint)" }}>
+                  #{r.serial}
+                </td>
                 <td className={TD}>
                   <div className="font-medium" style={{ color: "var(--d-ink)" }}>
                     {r.customer_name ?? "—"}

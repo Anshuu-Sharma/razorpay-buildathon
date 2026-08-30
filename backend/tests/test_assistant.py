@@ -45,6 +45,25 @@ def test_resolve_by_name(db_session):
     assert resolve_transaction(db_session, "acme", {}) == "t1"
 
 
+def test_resolve_by_serial_number(db_session):
+    _txn(db_session, "t1", "Acme Corp")
+    row = db_session.query(TransactionState).filter_by(transaction_id="t1").one()
+    for ref in (str(row.id), f"#{row.id}", f"transaction {row.id}"):
+        assert resolve_transaction(db_session, ref, {}) == "t1", ref
+
+
+def test_run_recovery_by_serial(db_session):
+    _txn(db_session, "t1", "Acme Corp", state=TransactionLifecycleState.PENDING)
+    row = db_session.query(TransactionState).filter_by(transaction_id="t1").one()
+    out = interpret(
+        db_session, f"recover transaction {row.id}", locale="en",
+        generate=_gen({"intent": "run_recovery", "transaction_ref": str(row.id),
+                       "reply": "Shall I start recovery — confirm?"}),
+    )
+    assert out["action"]["transaction_id"] == "t1"
+    assert out["action"]["requires_confirmation"] is True
+
+
 def test_resolve_this_uses_focused_context(db_session):
     _txn(db_session, "t1", "Acme Corp")
     assert resolve_transaction(db_session, "this one", {"focused_transaction_id": "t1"}) == "t1"

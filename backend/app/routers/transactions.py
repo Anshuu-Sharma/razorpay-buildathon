@@ -92,6 +92,7 @@ def _row(txn: TransactionState, trail: list[AuditTrail]) -> dict:
         else None
     )
     return {
+        "serial": txn.id,  # short, human-facing number ("recover transaction 171")
         "transaction_id": txn.transaction_id,
         "razorpay_payment_id": txn.razorpay_payment_id,
         "failure_class": int(txn.failure_class),

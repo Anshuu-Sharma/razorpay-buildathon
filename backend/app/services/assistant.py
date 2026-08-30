@@ -82,11 +82,19 @@ _THIS_WORDS = {"this", "this one", "current", "it", "the current one", "here"}
 
 # --- reference resolution ---------------------------------------------------
 
-def resolve_transaction(db: Session, ref: str | None, context: dict) -> str | None:
-    """Resolve a spoken reference ("Acme", "this one", a txn id) to a real id.
+def _serial_from_ref(ref: str) -> int | None:
+    """Extract a human serial number from a reference like "transaction 171",
+    "#171", or "171". Returns None if the ref isn't a serial."""
+    r = ref.strip().lower()
+    r = re.sub(r"^(transaction|txn|case|no\.?|number)\s+", "", r).strip()
+    r = r.lstrip("#").strip()
+    return int(r) if r.isdigit() else None
 
-    Returns None when nothing matches or a name is ambiguous, so callers can ask
-    the user to disambiguate rather than act on the wrong row.
+
+def resolve_transaction(db: Session, ref: str | None, context: dict) -> str | None:
+    """Resolve a spoken reference ("Acme", "this one", a txn id, "#171") to a real
+    id. Returns None when nothing matches or a name is ambiguous, so callers can
+    ask the user to disambiguate rather than act on the wrong row.
     """
     focused = context.get("focused_transaction_id")
     if not ref:
@@ -94,6 +102,11 @@ def resolve_transaction(db: Session, ref: str | None, context: dict) -> str | No
     r = ref.strip().lower()
     if r in _THIS_WORDS:
         return focused
+
+    serial = _serial_from_ref(ref)
+    if serial is not None:
+        row = db.get(TransactionState, serial)
+        return row.transaction_id if row else None
 
     txns = db.query(TransactionState).all()
     for t in txns:  # exact transaction id
@@ -139,6 +152,11 @@ def _recovery_candidates(db: Session, ref: str | None, context: dict) -> list[st
     focused = context.get("focused_transaction_id")
     if not ref or ref.strip().lower() in _THIS_WORDS:
         return [focused] if focused else []
+
+    serial = _serial_from_ref(ref)
+    if serial is not None:
+        row = db.get(TransactionState, serial)
+        return [row.transaction_id] if row and row.current_state in _RUNNABLE_STATES else []
 
     r = ref.strip().lower()
     txns = [t for t in db.query(TransactionState).all() if t.current_state in _RUNNABLE_STATES]
@@ -186,6 +204,7 @@ def _catalog(db: Session) -> list[dict]:
         meta = t.metadata_json or {}
         out.append({
             "id": t.transaction_id,
+            "serial": t.id,
             "name": meta.get("customer_name"),
             "class": int(t.failure_class),
             "status": t.current_state.value,
@@ -247,7 +266,8 @@ _ROUTE_GUIDE = (
 
 _REF_GUIDE = (
     "transaction_ref identifies the case: use the customer's FULL name exactly as it appears "
-    "in Transactions when named; use \"this\" when the operator says this/that/current/it and a "
+    "in Transactions when named; use the serial number (e.g. \"171\") when the operator refers "
+    "to a transaction by number; use \"this\" when the operator says this/that/current/it and a "
     "transaction is open; otherwise null."
 )
 

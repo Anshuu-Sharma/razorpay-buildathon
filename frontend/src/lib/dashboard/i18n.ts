@@ -92,6 +92,7 @@ const DASH = {
       of: "of",
       noMatch: "No transactions match these filters.",
       col: {
+        serial: "#",
         customer: "Customer",
         class: "Class",
         aiTag: "AI Tag",
@@ -513,6 +514,7 @@ const DASH = {
       of: "में से",
       noMatch: "इन फ़िल्टरों से कोई लेन-देन मेल नहीं खाता।",
       col: {
+        serial: "#",
         customer: "ग्राहक",
         class: "श्रेणी",
         aiTag: "AI टैग",

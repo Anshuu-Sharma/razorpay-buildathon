@@ -64,6 +64,7 @@ export type LifecycleStatus =
   | "FAILED";
 
 export interface TransactionRow {
+  serial: number;
   transaction_id: string;
   razorpay_payment_id: string;
   failure_class: number;

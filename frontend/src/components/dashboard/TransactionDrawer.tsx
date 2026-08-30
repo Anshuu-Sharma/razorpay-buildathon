@@ -160,7 +160,7 @@ function Body({ id, d, onClose }: { id: string; d: DashStrings; onClose: () => v
         </div>
         <h2 className="mt-2 text-lg font-semibold tracking-tight">{t.customer_name}</h2>
         <p className="d-num text-[11.5px]" style={{ color: "var(--d-faint)" }}>
-          {t.transaction_id} · {t.customer_contact_masked}
+          #{t.serial} · {t.transaction_id} · {t.customer_contact_masked}
         </p>
       </div>
 
