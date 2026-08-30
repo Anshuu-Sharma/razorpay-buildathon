@@ -147,6 +147,7 @@ const DASH = {
       colRule: "Rule",
       colStatus: "Status",
       colWhen: "When",
+      why: "Why ↗",
       empty: "No escalations — every case was handled autonomously within policy.",
     },
     audit: {
@@ -567,6 +568,7 @@ const DASH = {
       colRule: "नियम",
       colStatus: "स्थिति",
       colWhen: "कब",
+      why: "क्यों ↗",
       empty: "कोई एस्केलेशन नहीं — हर मामला नीति के भीतर स्वायत्त रूप से संभाला गया।",
     },
     audit: {

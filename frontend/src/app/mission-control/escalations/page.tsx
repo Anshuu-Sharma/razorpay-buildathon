@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { Card } from "@/components/dashboard/Card";
 import MiniStat from "@/components/dashboard/MiniStat";
+import TransactionDrawer from "@/components/dashboard/TransactionDrawer";
 import { ErrorState, Loading } from "@/components/dashboard/PageState";
 import { useApi } from "@/hooks/useApi";
 import { fetchEscalations, resolveEscalation } from "@/lib/dashboard/api";
@@ -17,6 +18,7 @@ export default function EscalationsPage() {
   const { bump, refresh } = useDashboardRefresh();
   const { d } = useDash();
   const e = d.esc;
+  const [selected, setSelected] = useState<string | null>(null);
   const onResolve = async (id: number) => {
     await resolveEscalation(id);
     refresh();
@@ -84,15 +86,25 @@ export default function EscalationsPage() {
                       {relTime(t.created_at, d)}
                     </td>
                     <td className={`${TD} text-right`}>
-                      {t.status === "OPEN" ? (
+                      <div className="inline-flex items-center gap-2">
                         <button
-                          onClick={() => onResolve(t.id)}
-                          className="rounded-lg px-2.5 py-1 text-[11.5px] font-semibold text-white"
-                          style={{ background: "var(--d-ok)" }}
+                          onClick={() => setSelected(t.transaction_id)}
+                          className="rounded-lg px-2.5 py-1 text-[11.5px] font-medium transition-colors hover:bg-[var(--d-surface-2)]"
+                          style={{ border: "1px solid var(--d-border)", color: "var(--d-muted)" }}
+                          title={e.colReason}
                         >
-                          {d.ops.resolve}
+                          {e.why}
                         </button>
-                      ) : null}
+                        {t.status === "OPEN" ? (
+                          <button
+                            onClick={() => onResolve(t.id)}
+                            className="rounded-lg px-2.5 py-1 text-[11.5px] font-semibold text-white"
+                            style={{ background: "var(--d-ok)" }}
+                          >
+                            {d.ops.resolve}
+                          </button>
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -105,6 +117,9 @@ export default function EscalationsPage() {
           </div>
         )}
       </Card>
+
+      {/* Why → the case's activity timeline, where the causing audit entry sits. */}
+      <TransactionDrawer id={selected} onClose={() => setSelected(null)} />
     </div>
   );
 }
