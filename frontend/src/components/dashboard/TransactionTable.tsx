@@ -3,7 +3,7 @@
 import type { TransactionRow, LifecycleStatus } from "@/lib/dashboard/types";
 import { inr } from "@/lib/dashboard/format";
 import { useDash, durTime, tVocab } from "@/lib/dashboard/i18n";
-import { CLASS_COLOR, aiTagTone, statusTone } from "@/lib/dashboard/status";
+import { CLASS_COLOR, statusTone } from "@/lib/dashboard/status";
 import type { DashStrings } from "@/lib/dashboard/i18n";
 
 function StatusBadge({ status, d }: { status: string; d: DashStrings }) {
@@ -73,7 +73,6 @@ export default function TransactionTable({
             <th className={`${TH} text-right`}>{col.serial}</th>
             <th className={TH}>{col.customer}</th>
             {showClass ? <th className={TH}>{col.class}</th> : null}
-            <th className={TH}>{col.aiTag}</th>
             <th className={`${TH} text-right`}>{col.amount}</th>
             <th className={TH}>{col.status}</th>
             <th className={TH}>{col.playbook}</th>
@@ -85,10 +84,6 @@ export default function TransactionTable({
         </thead>
         <tbody>
           {rows.map((r) => {
-            const ai = aiTagTone(r.ai_tag);
-            const aiLabel = r.ai_tag && r.ai_tag in d.aitag
-              ? d.aitag[r.ai_tag as keyof typeof d.aitag]
-              : ai.label;
             return (
               <tr
                 key={r.transaction_id}
@@ -120,14 +115,6 @@ export default function TransactionTable({
                     </span>
                   </td>
                 ) : null}
-                <td className={TD}>
-                  <span
-                    className="inline-flex rounded-md px-1.5 py-0.5 text-[11px] font-medium"
-                    style={{ background: ai.soft, color: ai.fg }}
-                  >
-                    {aiLabel}
-                  </span>
-                </td>
                 <td className={`${TD} d-num text-right font-medium`}>{inr(r.amount_inr)}</td>
                 <td className={TD}>
                   <StatusBadge status={r.status} d={d} />
