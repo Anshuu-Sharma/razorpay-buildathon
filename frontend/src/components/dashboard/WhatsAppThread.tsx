@@ -51,7 +51,7 @@ export default function WhatsAppThread({
       {/* Header */}
       <div
         className="flex items-center gap-2 px-2.5 pb-1.5"
-        style={{ background: "#075e54", color: "#fff", paddingTop: "13%" }}
+        style={{ background: "#075e54", color: "#fff", paddingTop: "20%" }}
       >
         <span style={{ fontSize: 15, opacity: 0.9 }}>‹</span>
         <span

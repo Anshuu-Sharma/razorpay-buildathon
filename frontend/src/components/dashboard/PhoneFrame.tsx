@@ -1,12 +1,16 @@
 import type { CSSProperties, ReactNode } from "react";
 
-// Screen cutout of public/phone/iphone_mock.png, measured from its alpha channel.
+// Screen slot over public/phone/iphone_mock.png. The transparent glass cutout
+// starts at 10.3%, but we run the app content up to 7% — the highest point where
+// the phone body is still full-width — so the coloured header covers the status
+// bar area and no bezel strip shows above WhatsApp/Call. Below 7% the body only
+// widens, so the content never pokes past the rounded top.
 const SCREEN: CSSProperties = {
-  top: "10.3%",
+  top: "7%",
   bottom: "6.82%",
   left: "12.74%",
   right: "12.74%",
-  borderRadius: "7% / 3.5%",
+  borderRadius: "9% / 4%",
 };
 
 /**
