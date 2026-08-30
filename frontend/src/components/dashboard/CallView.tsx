@@ -122,7 +122,7 @@ export default function CallView({
   return (
     <div className="flex h-full flex-col" style={{ background: "#0b141a", color: "#e9edef" }}>
       {/* Tabs */}
-      <div className="flex gap-1 p-1.5" style={{ paddingTop: "20%", background: "rgba(255,255,255,0.03)" }}>
+      <div className="flex gap-1 p-1.5" style={{ paddingTop: "14%", background: "rgba(255,255,255,0.03)" }}>
         {(["call", "log"] as Tab[]).map((t) => (
           <button
             key={t}
