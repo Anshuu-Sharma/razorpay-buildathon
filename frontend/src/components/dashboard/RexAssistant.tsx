@@ -8,6 +8,7 @@ import type { AssistantAction } from "@/lib/dashboard/api";
 import { inr } from "@/lib/dashboard/format";
 import { useDash, tVocab } from "@/lib/dashboard/i18n";
 import { useDashboardRefresh } from "@/lib/dashboard/refresh";
+import { useExplorerFilter } from "@/lib/dashboard/explorerFilter";
 import type { LifecycleStatus } from "@/lib/dashboard/types";
 import type { FeedItem } from "@/hooks/useRecoveryRun";
 import type { useRecoveryRun } from "@/hooks/useRecoveryRun";
@@ -34,6 +35,7 @@ export default function RexAssistant({ run, chat, focusedId, open, setOpen }: Pr
   const router = useRouter();
   const pathname = usePathname();
   const { refresh } = useDashboardRefresh();
+  const { setStatus: setExplorerStatus } = useExplorerFilter();
   const [input, setInput] = useState("");
   const [pending, setPending] = useState<{ txnId: string; status: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -47,6 +49,8 @@ export default function RexAssistant({ run, chat, focusedId, open, setOpen }: Pr
   const dispatch = async (action: AssistantAction) => {
     switch (action.type) {
       case "navigate":
+        // Carry (or clear) the table's status filter, then open the view.
+        setExplorerStatus(action.status ?? "");
         if (action.route) router.push(action.route);
         return;
       case "run_recovery":

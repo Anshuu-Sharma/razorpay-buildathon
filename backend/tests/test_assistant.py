@@ -118,6 +118,28 @@ def test_navigate_maps_to_route(db_session):
     assert out["action"]["route"] == "/mission-control/class/4"
 
 
+def test_navigate_with_status_filter(db_session):
+    # "recovered failed payments" → the class page AND a status filter.
+    out = interpret(
+        db_session, "show only recovered failed payments", locale="en",
+        generate=_gen({"intent": "navigate", "route": "class:1", "status": "RECOVERED",
+                       "reply": "Showing recovered failed payments."}),
+    )
+    assert out["action"]["type"] == "navigate"
+    assert out["action"]["route"] == "/mission-control/class/1"
+    assert out["action"]["status"] == "RECOVERED"
+
+
+def test_navigate_ignores_invalid_status_filter(db_session):
+    out = interpret(
+        db_session, "open transactions", locale="en",
+        generate=_gen({"intent": "navigate", "route": "transactions", "status": "BOGUS",
+                       "reply": "Opening transactions."}),
+    )
+    assert out["action"]["type"] == "navigate"
+    assert out["action"]["status"] is None
+
+
 def test_answer_has_no_action(db_session):
     _txn(db_session, "t1", "Acme Corp", state=TransactionLifecycleState.RECOVERED)
     out = interpret(

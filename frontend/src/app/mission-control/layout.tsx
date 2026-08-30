@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import Sidebar from "@/components/dashboard/Sidebar";
 import Topbar from "@/components/dashboard/Topbar";
 import { DashboardRefreshProvider } from "@/lib/dashboard/refresh";
+import { ExplorerFilterProvider } from "@/lib/dashboard/explorerFilter";
 import { RexRunProvider } from "@/lib/dashboard/rexrun";
 
 /**
@@ -25,6 +26,7 @@ export default function MissionControlLayout({
 
   return (
     <DashboardRefreshProvider>
+      <ExplorerFilterProvider>
       <RexRunProvider>
         <div
           className="theme-dashboard relative z-[200] flex h-screen overflow-hidden"
@@ -37,6 +39,7 @@ export default function MissionControlLayout({
           </div>
         </div>
       </RexRunProvider>
+      </ExplorerFilterProvider>
     </DashboardRefreshProvider>
   );
 }

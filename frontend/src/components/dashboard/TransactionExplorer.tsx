@@ -5,6 +5,7 @@ import { useApi } from "@/hooks/useApi";
 import { fetchTransactions } from "@/lib/dashboard/api";
 import { useDash } from "@/lib/dashboard/i18n";
 import { useDashboardRefresh } from "@/lib/dashboard/refresh";
+import { useExplorerFilter } from "@/lib/dashboard/explorerFilter";
 import type { LifecycleStatus, TransactionRow } from "@/lib/dashboard/types";
 import { CLASS_COLOR } from "@/lib/dashboard/status";
 import { Card } from "./Card";
@@ -64,7 +65,7 @@ export default function TransactionExplorer({ fixedClass }: { fixedClass?: numbe
 
   const [q, setQ] = useState("");
   const [type, setType] = useState("");
-  const [status, setStatus] = useState("");
+  const { status, setStatus } = useExplorerFilter(); // shared so REX can set it too
   const [selected, setSelected] = useState<string | null>(null);
   const [convo, setConvo] = useState<
     { txnId: string; name: string; channel: "whatsapp" | "call" } | null

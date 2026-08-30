@@ -177,7 +177,9 @@ _INTENT_GUIDE = (
     "cancel, fail). Set transaction_ref and status. Phrase 'reply' as a PROPOSAL awaiting the "
     "operator's confirmation (e.g. \"I'll escalate this — confirm?\"), never as already done.\n"
     "- add_note: the operator wants to attach a note. Set transaction_ref and note.\n"
-    "- navigate: the operator wants to open/show/go to a view. Set route.\n"
+    "- navigate: the operator wants to open/show/go to a view. Set route. If they also ask "
+    "for a specific outcome (e.g. 'recovered failed payments', 'escalated invoices'), set "
+    "status to that outcome as well — it becomes a filter on the table.\n"
 )
 
 _ROUTE_GUIDE = (
@@ -274,10 +276,12 @@ def _fallback_parse(message: str, db: Session, context: dict, locale: str) -> di
         return {"intent": "run_recovery", "transaction_ref": _ref_from_text(text, context),
                 "reply": _reply_for("run_recovery", locale)}
 
-    if any(w in text for w in ("show", "open", "go to", "take me", "navigate")):
+    if any(w in text for w in ("show", "open", "go to", "take me", "navigate", "filter")):
         route = _route_from_text(text)
         if route:
-            return {"intent": "navigate", "route": route, "reply": _reply_for("navigate", locale)}
+            status = next((v for k, v in _STATUS_WORDS.items() if k in text), None)
+            return {"intent": "navigate", "route": route, "status": status,
+                    "reply": _reply_for("navigate", locale)}
 
     # Otherwise it's a question — answer it from the live metrics.
     return {"intent": "answer", "reply": _answer_from_metrics(text, db, locale)}
@@ -360,9 +364,12 @@ def _build(db: Session, parsed: dict, context: dict, locale: str) -> dict:
         path = _route_path(parsed.get("route"))
         if not path:
             return {"reply": reply or _reply_for("navigate", locale), "action": None}
+        # A navigate can carry a status filter ("recovered failed payments"); the
+        # frontend applies it to the transactions table on arrival.
+        status_filter = parsed.get("status") if parsed.get("status") in _STATUSES else None
         return {"reply": reply or _reply_for("navigate", locale),
                 "action": {"type": "navigate", "route": path, "requires_confirmation": False,
-                           "transaction_id": None, "status": None, "note": None}}
+                           "transaction_id": None, "status": status_filter, "note": None}}
 
     # The remaining intents act on a specific transaction.
     txn_id = resolve_transaction(db, parsed.get("transaction_ref"), context)
