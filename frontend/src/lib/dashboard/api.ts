@@ -64,12 +64,53 @@ export const fetchEscalations = (signal?: AbortSignal) =>
 export const fetchPolicy = (signal?: AbortSignal) =>
   getJson<PolicyResponse>("/policy", signal);
 
+export interface PolicyPatch {
+  max_discount_pct?: number;
+  max_intervention_amount_minor?: number;
+  allowed_actions?: string[];
+  allowed_channels?: string[];
+}
+
+export const editPolicy = (patch: PolicyPatch) =>
+  patchJson<PolicyResponse>("/policy", patch);
+
+export interface ValidateResult {
+  approved: boolean;
+  reason: string;
+}
+
+export const validateAction = (body: {
+  action: string;
+  channel?: string | null;
+  discount_pct?: number | null;
+  amount_inr?: number | null;
+}) => postJson<ValidateResult>("/policy/validate", body);
+
+export interface ScreenResult {
+  disposition: string;
+  rule: string | null;
+  reason: string;
+}
+
+export const screenMessage = (message: string) =>
+  postJson<ScreenResult>("/policy/screen", { message });
+
 export const fetchConversation = (id: string, signal?: AbortSignal) =>
   getJson<Conversation>(`/transactions/${encodeURIComponent(id)}/conversation`, signal);
 
 async function postJson<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${V1}${path}`, {
     method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return (await res.json()) as T;
+}
+
+async function patchJson<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${V1}${path}`, {
+    method: "PATCH",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });

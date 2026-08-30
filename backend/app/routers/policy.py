@@ -1,21 +1,28 @@
-"""Read-only policy surface — the deterministic 'Bouncer' made inspectable.
+"""The compliance "Bouncer" — inspectable, testable, and operator-editable.
 
-Exposes the hardcoded merchant policy the PolicySandbox enforces plus the named
-compliance stopping rules, so the dashboard can show exactly what the engine is
-allowed to do (and where it must stop) without any of it depending on the LLM.
+Exposes the merchant policy the PolicySandbox enforces plus the named stopping
+rules; lets a human operator tune the policy (the model never can); and lets the
+dashboard *test* the Bouncer live — validate a proposed action against the policy,
+or screen a customer message for opt-out/dispute intent — using the real code,
+no LLM in the loop.
 """
 
-import json
-from pathlib import Path
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
-from fastapi import APIRouter
-
+from app.database import get_db
 from app.enums import StoppingRule
-from app.services.policy_sandbox import _MONEY_MOVING_ACTIONS
+from app.services.policy_sandbox import ProposedAction, _MONEY_MOVING_ACTIONS
+from app.services.policy_store import (
+    PolicyValidationError,
+    get_policy,
+    sandbox_for,
+    update_policy,
+)
+from app.services.stopping_rules import screen_user_message
 
 router = APIRouter(tags=["policy"])
-
-_POLICY_PATH = Path(__file__).resolve().parent.parent / "config" / "merchant_policy.json"
 
 # Human descriptions for each compliance stopping rule (the "why we halt").
 _RULE_DESCRIPTIONS: dict[StoppingRule, str] = {
@@ -30,11 +37,7 @@ _RULE_DESCRIPTIONS: dict[StoppingRule, str] = {
 }
 
 
-@router.get("/policy")
-def get_policy() -> dict:
-    with _POLICY_PATH.open() as fh:
-        policy = json.load(fh)
-    policy.pop("_comment", None)
+def _payload(policy: dict) -> dict:
     return {
         "policy": policy,
         "money_moving_actions": sorted(_MONEY_MOVING_ACTIONS),
@@ -42,4 +45,64 @@ def get_policy() -> dict:
             {"name": rule.value, "description": desc}
             for rule, desc in _RULE_DESCRIPTIONS.items()
         ],
+    }
+
+
+@router.get("/policy")
+def get_policy_endpoint(db: Session = Depends(get_db)) -> dict:
+    return _payload(get_policy(db))
+
+
+class PolicyPatch(BaseModel):
+    max_discount_pct: int | None = Field(default=None, ge=0, le=100)
+    max_intervention_amount_minor: int | None = Field(default=None, ge=0)
+    allowed_actions: list[str] | None = None
+    allowed_channels: list[str] | None = None
+
+
+@router.patch("/policy")
+def edit_policy(patch: PolicyPatch, db: Session = Depends(get_db)) -> dict:
+    """An operator tunes the guardrails. Rejected if an edit is out of range or
+    names an action/channel the engine doesn't know."""
+    try:
+        updated = update_policy(db, patch.model_dump(exclude_none=True))
+    except PolicyValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    return _payload(updated)
+
+
+class ValidateBody(BaseModel):
+    action: str
+    channel: str | None = None
+    discount_pct: float | None = None
+    amount_inr: float | None = None
+
+
+@router.post("/policy/validate")
+def validate_action(body: ValidateBody, db: Session = Depends(get_db)) -> dict:
+    """Run a proposed action through the real PolicySandbox and report the verdict
+    — the same gate every recovery action must clear."""
+    proposed = ProposedAction(
+        action=body.action,
+        channel=body.channel,
+        discount_pct=body.discount_pct,
+        amount_minor=int(body.amount_inr * 100) if body.amount_inr is not None else None,
+    )
+    decision = sandbox_for(db).validate(proposed)
+    return {"approved": decision.approved, "reason": decision.reason}
+
+
+class ScreenBody(BaseModel):
+    message: str = Field(min_length=1, max_length=2000)
+
+
+@router.post("/policy/screen")
+def screen_message(body: ScreenBody) -> dict:
+    """Run a customer message through the deterministic stopping-rule screener —
+    the adversarial defence that honours an opt-out even inside a prompt injection."""
+    verdict = screen_user_message(body.message)
+    return {
+        "disposition": verdict.disposition,
+        "rule": verdict.rule.value if verdict.rule else None,
+        "reason": verdict.reason,
     }

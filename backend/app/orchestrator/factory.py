@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.adapters.dispatcher import build_dispatcher
 from app.database import get_db
 from app.orchestrator.graph import OrchestratorDeps
-from app.services.policy_sandbox import PolicySandbox
+from app.services.policy_store import sandbox_for
 
 
 def get_orchestrator_deps(db: Session = Depends(get_db)) -> OrchestratorDeps:
@@ -23,6 +23,7 @@ def get_orchestrator_deps(db: Session = Depends(get_db)) -> OrchestratorDeps:
     return OrchestratorDeps(
         db=db,
         diagnosis=default_diagnosis_engine(),
-        sandbox=PolicySandbox.from_default_policy(),
+        # Built from the operator-editable policy, so tuning it re-gates REX live.
+        sandbox=sandbox_for(db),
         dispatch=build_dispatcher(db),
     )
