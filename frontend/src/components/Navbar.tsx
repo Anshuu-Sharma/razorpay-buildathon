@@ -31,7 +31,7 @@ export default function Navbar() {
       <div className="flex items-center gap-5">
         <LocaleToggle />
         <Link
-          href="/demo"
+          href="/story"
           className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-6 py-3 text-sm font-medium text-fg transition-colors hover:bg-white/[0.16]"
         >
           {t.nav.getStarted}
