@@ -280,11 +280,12 @@ def _seed_trackers(db, now: datetime) -> None:
                   TransactionLifecycleState.INTERVENING, TransactionLifecycleState.RECOVERED)
 
     subs = [
-        ("Aarav Mehta", "Rooh Pro", 799, 3, 1, P),
-        ("Diya Kapoor", "Rooh Team", 2499, 6, 1, W),      # deferred to salary
-        ("Kabir Singh", "Rooh Studio", 4999, 9, 5, I),    # retrying
-        ("Myra Reddy", "Rooh Plus", 399, 12, 1, P),
-        ("Vivaan Shah", "Rooh Pro", 799, 2, 28, R),       # recovered
+        ("Aarav Mehta", "Rooh Pro", 799, -18, 1, R),     # last month, paid
+        ("Diya Kapoor", "Rooh Team", 2499, -9, 1, R),    # last month, paid
+        ("Kabir Singh", "Rooh Studio", 4999, -3, 5, I),  # recent, retrying
+        ("Myra Reddy", "Rooh Plus", 399, 4, 1, P),       # upcoming, pending
+        ("Vivaan Shah", "Rooh Pro", 799, 8, 28, W),      # upcoming, deferred to salary
+        ("Ishaan Roy", "Rooh Team", 2499, 13, 1, P),     # upcoming, pending
     ]
     for name, plan, amt, in_days, salary_day, state in subs:
         _tracker_txn(db, FailureClass.SUBSCRIPTION_MANDATE, name, amt, state, {

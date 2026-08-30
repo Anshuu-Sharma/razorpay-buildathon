@@ -51,11 +51,11 @@ def _iso(d: date) -> str:
 
 # --- subscriptions (Class 3) ------------------------------------------------
 
-def _subscription_view(txn: TransactionState) -> dict:
+def _subscription_view(txn: TransactionState, today: date) -> dict:
     meta = txn.metadata_json or {}
-    created = txn.created_at.date()
-    # Explicit on rows we created; derived for seeded rows.
-    next_debit = _d(meta.get("next_debit_date")) or created + timedelta(days=30)
+    # Explicit on rows we created; derived rows are spread across ~5 weeks around
+    # today (id-based, deterministic) so the calendar isn't bunched in one month.
+    next_debit = _d(meta.get("next_debit_date")) or today + timedelta(days=(txn.id % 35) - 16)
     salary_day = int(meta.get("salary_day", 1))
     status = meta.get("mandate_status") or _MANDATE_STATUS.get(txn.current_state, "active")
     return {
@@ -76,12 +76,13 @@ def _subscription_view(txn: TransactionState) -> dict:
 
 
 def list_subscriptions(db: Session) -> list[dict]:
+    today = utcnow().date()
     rows = (
         db.query(TransactionState)
         .filter(TransactionState.failure_class == int(FailureClass.SUBSCRIPTION_MANDATE))
         .all()
     )
-    views = [_subscription_view(t) for t in rows]
+    views = [_subscription_view(t, today) for t in rows]
     views.sort(key=lambda v: v["next_debit_date"])
     return views
 
@@ -98,7 +99,7 @@ def create_subscription(
         "salary_day": salary_day,
         "mandate_status": "at_risk",
     })
-    return _subscription_view(txn)
+    return _subscription_view(txn, utcnow().date())
 
 
 # --- invoices (Class 4) -----------------------------------------------------
@@ -117,9 +118,10 @@ def _aging_bucket(days_overdue: int) -> str:
 
 def _invoice_view(txn: TransactionState, today: date) -> dict:
     meta = txn.metadata_json or {}
-    created = txn.created_at.date()
-    issue = _d(meta.get("issue_date")) or created
-    due = _d(meta.get("due_date")) or issue + timedelta(days=30)
+    # Explicit on rows we created; derived rows spread across ~6 weeks around today
+    # so due dates land in more than one month (and across the aging buckets).
+    due = _d(meta.get("due_date")) or today + timedelta(days=(txn.id % 45) - 26)
+    issue = _d(meta.get("issue_date")) or due - timedelta(days=30)
     days_overdue = (today - due).days
     p2p = meta.get("p2p_date")
     # Next reminder: the promise date if given, else a few days out.
