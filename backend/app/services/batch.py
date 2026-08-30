@@ -257,15 +257,16 @@ def seed_batch(db, *, spec: list | None = None, now: datetime | None = None) -> 
     return BatchResult(seeded=len(rows), by_state=by_state)
 
 
-# A uniform spread of outcomes, seeded per class so every state is well
-# represented in the tables, trackers, metrics and escalation queue.
-_BULK_STATES = [
-    TransactionLifecycleState.RECOVERED,
-    TransactionLifecycleState.PENDING,
-    TransactionLifecycleState.INTERVENING,
-    TransactionLifecycleState.ESCALATED,
-    TransactionLifecycleState.FAILED,
-]
+# A spread of outcomes seeded per class so every state is represented, weighted
+# toward recovered so GRRR stays realistic (10 recovered + 10 across the rest).
+_BULK_MIX = {
+    TransactionLifecycleState.RECOVERED: 12,
+    TransactionLifecycleState.PENDING: 3,
+    TransactionLifecycleState.INTERVENING: 2,
+    TransactionLifecycleState.ESCALATED: 2,
+    TransactionLifecycleState.FAILED: 1,
+}
+_BULK_STATES = [s for s, n in _BULK_MIX.items() for _ in range(n)]  # length 20
 _BULK_ACTION = {
     FailureClass.REALTIME_DEGRADATION: (InterventionAction.GENERATE_PAYMENT_LINK, InterventionChannel.PAYMENT_LINK),
     FailureClass.CHECKOUT_ABANDONMENT: (InterventionAction.SEND_WHATSAPP, InterventionChannel.WHATSAPP),
