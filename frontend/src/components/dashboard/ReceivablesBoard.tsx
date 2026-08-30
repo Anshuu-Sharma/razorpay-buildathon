@@ -44,6 +44,7 @@ export default function ReceivablesBoard() {
     const map: Record<string, { total: number; count: number }> = {};
     for (const b of BUCKETS) map[b] = { total: 0, count: 0 };
     for (const i of rows) {
+      if (i.status === "RECOVERED") continue; // paid → not at risk
       const b = map[i.aging_bucket];
       if (b) { b.total += i.amount_inr; b.count += 1; }
     }

@@ -51,13 +51,28 @@ def _iso(d: date) -> str:
 
 # --- subscriptions (Class 3) ------------------------------------------------
 
+# A debit's date must agree with its status: what's already Paid (or failed) is in
+# the past; what's Pending / Deferred / Retrying is upcoming. Derived dates follow
+# this so a future debit can never read as "recovered".
+_SUB_PAST = {"recovered", "failed", "cancelled", "escalated"}
+
+
+def _sub_offset(txn_id: int, status: str) -> int:
+    if status in _SUB_PAST:
+        return -(5 + txn_id % 25)          # already happened
+    if status == "retrying":
+        return 1 + txn_id % 5              # retry imminent
+    if status == "deferred":
+        return 3 + txn_id % 12             # deferred to the salary window
+    return 2 + txn_id % 20                 # at_risk / active → upcoming
+
+
 def _subscription_view(txn: TransactionState, today: date) -> dict:
     meta = txn.metadata_json or {}
-    # Explicit on rows we created; derived rows are spread across ~5 weeks around
-    # today (id-based, deterministic) so the calendar isn't bunched in one month.
-    next_debit = _d(meta.get("next_debit_date")) or today + timedelta(days=(txn.id % 35) - 16)
     salary_day = int(meta.get("salary_day", 1))
     status = meta.get("mandate_status") or _MANDATE_STATUS.get(txn.current_state, "active")
+    # Explicit on rows we created; derived rows land on a status-consistent date.
+    next_debit = _d(meta.get("next_debit_date")) or today + timedelta(days=_sub_offset(txn.id, status))
     return {
         "transaction_id": txn.transaction_id,
         "serial": txn.id,
@@ -116,14 +131,32 @@ def _aging_bucket(days_overdue: int) -> str:
     return "90+"
 
 
+def _inv_category(status: str, p2p) -> str:
+    if status == "RECOVERED":
+        return "paid"
+    if p2p or status in ("INTERVENING", "WAITING"):
+        return "sent"
+    return "pending"
+
+
+def _inv_offset(txn_id: int, category: str) -> int:
+    # Paid / being-chased invoices are overdue (past). Pending splits between
+    # current (not yet due, future) and overdue-but-unactioned (past).
+    if category == "paid":
+        return -(10 + txn_id % 50)
+    if category == "sent":
+        return -(5 + txn_id % 80)
+    return (5 + txn_id % 20) if txn_id % 2 == 0 else -(5 + txn_id % 70)
+
+
 def _invoice_view(txn: TransactionState, today: date) -> dict:
     meta = txn.metadata_json or {}
-    # Explicit on rows we created; derived rows spread across ~6 weeks around today
-    # so due dates land in more than one month (and across the aging buckets).
-    due = _d(meta.get("due_date")) or today + timedelta(days=(txn.id % 45) - 26)
+    p2p = meta.get("p2p_date")
+    category = _inv_category(txn.current_state.value, p2p)
+    # Explicit on rows we created; derived rows land on a status-consistent due date.
+    due = _d(meta.get("due_date")) or today + timedelta(days=_inv_offset(txn.id, category))
     issue = _d(meta.get("issue_date")) or due - timedelta(days=30)
     days_overdue = (today - due).days
-    p2p = meta.get("p2p_date")
     # Next reminder: the promise date if given, else a few days out.
     next_reminder = p2p or _iso(today + timedelta(days=3))
     return {

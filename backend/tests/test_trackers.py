@@ -1,8 +1,11 @@
 """Class-3 subscription calendar and Class-4 receivables board."""
 
+from datetime import date
+
 from app.enums import FailureClass, TransactionLifecycleState
 from app.models import TransactionState
 from app.services.trackers import list_invoices, list_subscriptions
+from app.utils import utcnow
 
 
 def _txn(db, fc, name, state=TransactionLifecycleState.PENDING, amount=499900, meta=None):
@@ -31,6 +34,28 @@ def test_list_subscriptions_only_class_3(db_session):
     s = subs[0]
     assert s["next_debit_date"] and s["retry_cap"] == 3
     assert s["predicted_fail"] is True  # PENDING + at-risk
+
+
+def test_recovered_items_never_sit_on_a_future_date(db_session):
+    # A paid/recovered debit or invoice must be in the past — you can't have
+    # collected money that isn't due until next month.
+    today = utcnow().date()
+    _txn(db_session, FailureClass.SUBSCRIPTION_MANDATE, "PaidSub",
+         state=TransactionLifecycleState.RECOVERED)
+    _txn(db_session, FailureClass.B2B_RECEIVABLES, "PaidInv",
+         state=TransactionLifecycleState.RECOVERED)
+    sub = list_subscriptions(db_session)[0]
+    inv = list_invoices(db_session)[0]
+    assert sub["mandate_status"] == "recovered"
+    assert date.fromisoformat(sub["next_debit_date"]) < today
+    assert date.fromisoformat(inv["due_date"]) < today
+
+
+def test_pending_subscription_debit_is_upcoming(db_session):
+    today = utcnow().date()
+    _txn(db_session, FailureClass.SUBSCRIPTION_MANDATE, "Upcoming",
+         state=TransactionLifecycleState.PENDING)
+    assert date.fromisoformat(list_subscriptions(db_session)[0]["next_debit_date"]) >= today
 
 
 def test_waiting_subscription_reads_as_deferred(db_session):
