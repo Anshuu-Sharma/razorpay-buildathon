@@ -244,12 +244,75 @@ def seed_batch(db, *, spec: list | None = None, now: datetime | None = None) -> 
             index += 1
 
     _spread_timestamps(db, now)
+    _seed_trackers(db, now)
 
     rows = db.query(TransactionState).all()
     by_state: dict[str, int] = {}
     for t in rows:
         by_state[t.current_state.value] = by_state.get(t.current_state.value, 0) + 1
     return BatchResult(seeded=len(rows), by_state=by_state)
+
+
+def _tracker_txn(db, fc: FailureClass, name: str, amount_inr: float,
+                 state: TransactionLifecycleState, meta: dict) -> None:
+    db.add(TransactionState(
+        transaction_id=f"txn_{int(fc)}_{uuid.uuid4().hex[:8]}",
+        razorpay_payment_id=f"pay_{uuid.uuid4().hex[:10]}",
+        failure_class=int(fc),
+        current_state=state,
+        merchant_id="merch_rooh",
+        customer_contact="+919900000000",
+        amount_minor=int(round(amount_inr * 100)),
+        currency="INR",
+        metadata_json={
+            "customer_name": name, "is_at_risk": True, "ai_tag": "RECOVERY_CASE",
+            "unworked": True, "run_outcome": "recovered",
+            "archetype": f"CLASS_{int(fc)}", **meta,
+        },
+    ))
+
+
+def _seed_trackers(db, now: datetime) -> None:
+    """Dummy rows that give the Class-3 calendar and Class-4 board depth: upcoming
+    mandate debits across states, and invoices spread across the aging buckets."""
+    today = now.date()
+    P, W, I, R = (TransactionLifecycleState.PENDING, TransactionLifecycleState.WAITING,
+                  TransactionLifecycleState.INTERVENING, TransactionLifecycleState.RECOVERED)
+
+    subs = [
+        ("Aarav Mehta", "Rooh Pro", 799, 3, 1, P),
+        ("Diya Kapoor", "Rooh Team", 2499, 6, 1, W),      # deferred to salary
+        ("Kabir Singh", "Rooh Studio", 4999, 9, 5, I),    # retrying
+        ("Myra Reddy", "Rooh Plus", 399, 12, 1, P),
+        ("Vivaan Shah", "Rooh Pro", 799, 2, 28, R),       # recovered
+    ]
+    for name, plan, amt, in_days, salary_day, state in subs:
+        _tracker_txn(db, FailureClass.SUBSCRIPTION_MANDATE, name, amt, state, {
+            "subscription": True, "plan": plan, "cycle": "monthly",
+            "next_debit_date": (today + timedelta(days=in_days)).isoformat(),
+            "salary_day": salary_day,
+        })
+
+    invoices = [
+        ("Zomato Ltd", 128000, 20, 3, None, P),           # not due yet
+        ("Swiggy Foods", 96000, 10, -12, None, P),        # 0-30 overdue
+        ("Blinkit Retail", 210000, 5, -44, "P2P", I),     # 30-60, promised
+        ("Nykaa Fashion", 74000, 30, -72, None, P),       # 60-90
+        ("Meesho Traders", 156000, 45, -110, None, P),    # 90+
+        ("Ola Cabs", 88000, 15, -20, "P2P", W),           # 0-30, promised
+    ]
+    for buyer, amt, term_days, due_offset, p2p, state in invoices:
+        due = today + timedelta(days=due_offset)
+        meta = {
+            "invoice": True, "invoice_no": f"INV-{2600 + abs(due_offset)}",
+            "issue_date": (due - timedelta(days=term_days)).isoformat(),
+            "due_date": due.isoformat(), "terms": f"NET{term_days}",
+        }
+        if p2p:
+            meta["p2p_date"] = (today + timedelta(days=5)).isoformat()
+        _tracker_txn(db, FailureClass.B2B_RECEIVABLES, buyer, amt, state, meta)
+
+    db.commit()
 
 
 def _new_txn(fc: FailureClass, index: int, *, archetype: str, is_at_risk: bool,

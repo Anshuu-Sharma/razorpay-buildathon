@@ -5,7 +5,17 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import init_db
-from app.routers import admin, assistant, health, metrics, policy, stream, transactions, webhooks
+from app.routers import (
+    admin,
+    assistant,
+    health,
+    metrics,
+    policy,
+    stream,
+    trackers,
+    transactions,
+    webhooks,
+)
 
 
 @asynccontextmanager
@@ -41,6 +51,7 @@ app.include_router(transactions.router, prefix="/api/v1")
 app.include_router(policy.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1")
 app.include_router(assistant.router, prefix="/api/v1")
+app.include_router(trackers.router, prefix="/api/v1")
 
 
 @app.get("/")

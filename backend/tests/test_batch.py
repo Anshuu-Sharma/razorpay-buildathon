@@ -10,7 +10,8 @@ from app.services.batch import DEFAULT_BATCH, seed_batch
 def test_seed_batch_populates_transactions(db_session):
     result = seed_batch(db_session)
     rows = db_session.query(TransactionState).all()
-    assert result.seeded == len(rows) == sum(s.count for s in DEFAULT_BATCH)
+    # seed_batch also seeds the Class-3/4 tracker rows on top of DEFAULT_BATCH.
+    assert result.seeded == len(rows) >= sum(s.count for s in DEFAULT_BATCH)
     assert result.seeded >= 40  # enough to make the charts meaningful
 
 
