@@ -65,9 +65,12 @@ def client(db_session):
         )
 
     from app.orchestrator.factory import get_orchestrator_deps
+    from app.routers.assistant import get_assistant_generate
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_orchestrator_deps] = override_orchestrator_deps
+    # Keep the assistant offline in tests → deterministic keyword parser, no network.
+    app.dependency_overrides[get_assistant_generate] = lambda: None
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
