@@ -35,11 +35,6 @@ const icons = {
       <path d="M4 7h16M4 12h16M4 17h10" />
     </Icon>
   ),
-  live: (
-    <Icon>
-      <path d="M3 12h4l2 6 4-14 2 8h6" />
-    </Icon>
-  ),
   escalations: (
     <Icon>
       <path d="M12 3 2.5 20h19L12 3Z" />
@@ -93,9 +88,8 @@ export const NAV: NavGroup[] = [
         icon: icons.transactions,
         ready: true,
       },
-      // Live Run is intentionally not in the sidebar — the conversation panels +
-      // audit timeline are the concrete "watch it happen" surfaces now. The
-      // /mission-control/live route stays intact (story/demo CTAs still open it).
+      // The conversation panels + audit timeline are the "watch it happen"
+      // surfaces now; the old live-run route has been removed entirely.
     ],
   },
   {
