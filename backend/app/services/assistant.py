@@ -167,15 +167,44 @@ def _inr(n: float) -> str:
 
 # --- the model path ---------------------------------------------------------
 
+_INTENT_GUIDE = (
+    "Choose exactly one intent:\n"
+    "- answer: the operator is asking a question (rate, totals, status, which class is worst, "
+    "what a term means). Do NOT emit an action; put the grounded answer in 'reply'.\n"
+    "- run_recovery: the operator wants REX to work/recover/chase a specific case. Set "
+    "transaction_ref.\n"
+    "- set_status: the operator wants a case's outcome changed (mark recovered, escalate, "
+    "cancel, fail). Set transaction_ref and status. Phrase 'reply' as a PROPOSAL awaiting the "
+    "operator's confirmation (e.g. \"I'll escalate this — confirm?\"), never as already done.\n"
+    "- add_note: the operator wants to attach a note. Set transaction_ref and note.\n"
+    "- navigate: the operator wants to open/show/go to a view. Set route.\n"
+)
+
+_ROUTE_GUIDE = (
+    "route is one of: overview, transactions, escalations, audit, compliance, policy — "
+    "or class:N for one payment category, where "
+    "1=Failed Payments, 2=Abandoned Checkouts, 3=Failed Subscriptions/Mandates, "
+    "4=Overdue Invoices (B2B receivables). "
+    "When the operator names a category (e.g. 'overdue invoices', 'failed subscriptions', "
+    "'abandoned checkouts', 'failed payments'), you MUST use the matching class:N, not "
+    "'transactions'. Use 'transactions' only for the unfiltered list."
+)
+
+_REF_GUIDE = (
+    "transaction_ref identifies the case: use the customer's FULL name exactly as it appears "
+    "in Transactions when named; use \"this\" when the operator says this/that/current/it and a "
+    "transaction is open; otherwise null."
+)
+
 _SCHEMA_HINT = (
-    'Return ONLY JSON: {"intent": one of '
-    '["run_recovery","set_status","add_note","navigate","answer"], '
-    '"transaction_ref": string|null (a customer name, "this", or a txn id), '
+    'Return ONLY minified JSON with these keys: '
+    '{"intent": one of ["run_recovery","set_status","add_note","navigate","answer"], '
+    '"transaction_ref": string|null, '
     '"status": one of ["RECOVERED","ESCALATED","CANCELLED","FAILED","INTERVENING"]|null, '
     '"note": string|null, '
-    '"route": one of ["overview","transactions","escalations","audit","compliance","policy"] '
-    'or "class:N" (N=1..4)|null, '
-    '"reply": a short natural-language reply to the user}.'
+    '"route": string|null, '
+    '"reply": a short natural-language reply in the operator\'s language}. '
+    "No prose outside the JSON."
 )
 
 
@@ -185,10 +214,17 @@ def _prompt(message: str, db: Session, context: dict, locale: str) -> str:
     lang = "Hindi (Devanagari script)" if locale == "hi" else "English"
     focused = context.get("focused_transaction_id")
     return (
-        "You are REX, an AI revenue-recovery agent embedded in a payments "
-        "operations dashboard. Interpret the operator's message and decide whether "
-        "they are asking a question (intent 'answer') or asking you to act.\n"
-        f"Reply in {lang}. Ground any numbers in the metrics below — never invent figures.\n\n"
+        "You are REX, an autonomous revenue-recovery agent embedded in a payments "
+        "operations dashboard. Read the operator's message and decide whether they are "
+        "asking a question or telling you to act, then respond as JSON.\n\n"
+        f"{_INTENT_GUIDE}\n"
+        f"{_REF_GUIDE}\n\n"
+        f"{_ROUTE_GUIDE}\n\n"
+        f"Reply in {lang}, in one or two short sentences, warm and professional. Refer to cases "
+        "by the customer's name — never surface raw transaction IDs in the reply. Ground every "
+        "number in the metrics below — never invent figures, names, or amounts. If a request is "
+        "ambiguous or names a case you cannot find in Transactions, ask a brief clarifying "
+        "question with intent 'answer' and no action.\n\n"
         f"Live metrics: {json.dumps(metrics)}\n"
         f"Transactions: {json.dumps(catalog)}\n"
         f"Currently open transaction id: {focused!r} (this is what 'this'/'current' refer to).\n\n"
