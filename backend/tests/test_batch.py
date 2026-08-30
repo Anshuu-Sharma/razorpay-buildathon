@@ -44,6 +44,18 @@ def test_seed_batch_covers_all_four_classes_plus_context(db_session):
     assert "NON_RECOVERABLE" in archetypes
 
 
+def test_all_eight_stopping_rules_fire_in_the_batch(db_session):
+    # No catalog-only rules: every named stopping rule appears in the audit trail.
+    from app.services.reconciliation import compute_metrics
+
+    seed_batch(db_session)
+    fired = compute_metrics(db_session)["stopping_rules_by_name"]
+    for rule in ("NO_DOUBLE_CHARGE", "CROSS_DEVICE_COMPLETION", "RBI_MAX_RETRIES",
+                 "EXPLICIT_CANCEL", "OPT_OUT", "DISPUTE_FREEZE",
+                 "TRAI_QUIET_HOURS", "VOICE_ATTEMPT_CAP"):
+        assert fired.get(rule, 0) >= 1, f"{rule} never fired"
+
+
 def test_seed_batch_produces_a_spread_of_outcomes(db_session):
     seed_batch(db_session)
     rows = db_session.query(TransactionState).all()

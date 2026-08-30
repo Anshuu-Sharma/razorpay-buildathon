@@ -33,6 +33,11 @@ from app.enums import (
     TransactionLifecycleState,
 )
 from app.services.escalation import enqueue_escalation
+from app.services.stopping_rules import (
+    is_within_quiet_hours,
+    screen_user_message,
+    voice_attempts_exhausted,
+)
 from app.models import (
     AuditTrail,
     CallSession,
@@ -247,6 +252,7 @@ def seed_batch(db, *, spec: list | None = None, now: datetime | None = None) -> 
             index += 1
 
     _seed_bulk(db, per_class=20)
+    _seed_compliance_stops(db, now)
     _spread_timestamps(db, now)
     _seed_trackers(db, now)
 
@@ -320,6 +326,76 @@ def _seed_bulk(db, *, per_class: int = 20) -> None:
             db.refresh(txn)
             _bulk_audit(db, txn, fc, state)
             index += 1
+    db.commit()
+
+
+def _ingest_diagnose(db, txn: TransactionState, fc: FailureClass) -> None:
+    profile = _CLASS_PROFILE[fc]
+    record_audit(db, transaction_id=txn.transaction_id, node_name=NodeName.INGEST,
+                 action_type=ActionType.STATE_TRANSITION,
+                 payload={"event": "FLAGGED", "class": profile["label"]}, outcome=Outcome.SUCCESS)
+    record_audit(db, transaction_id=txn.transaction_id, node_name=NodeName.DIAGNOSE,
+                 action_type=ActionType.STATE_TRANSITION,
+                 payload={"root_cause": profile["root_cause"],
+                          "recommended_playbook": _DEFAULT_PLAYBOOK[fc].value,
+                          "confidence": profile["confidence"]}, outcome=Outcome.SUCCESS)
+
+
+def _seed_compliance_stops(db, now: datetime) -> None:
+    """Exercise the two time/frequency stopping rules for real so they aren't
+    catalog-only: TRAI quiet-hours (defer outbound at night) and the voice-attempt
+    cap (block a 3rd call, switch channel). Each genuinely invokes the rule."""
+    # --- TRAI quiet hours: outbound attempted at night → deferred, not dropped. ---
+    quiet_dt = now.replace(hour=21, minute=34, second=0, microsecond=0)
+    assert is_within_quiet_hours(quiet_dt)  # the rule itself confirms it fires
+    idx = 30_000
+    for fc in (FailureClass.B2B_RECEIVABLES, FailureClass.SUBSCRIPTION_MANDATE):
+        txn = _new_txn(fc, idx, archetype=f"CLASS_{int(fc)}", is_at_risk=True,
+                       state=TransactionLifecycleState.WAITING)
+        txn.metadata_json["ai_tag"] = "RECOVERY_CASE"
+        db.add(txn); db.commit(); db.refresh(txn)
+        _ingest_diagnose(db, txn, fc)
+        record_audit(db, transaction_id=txn.transaction_id, node_name=NodeName.WAIT,
+                     action_type=ActionType.RETRY_SCHEDULED,
+                     payload={"stopping_rule": StoppingRule.TRAI_QUIET_HOURS.value,
+                              "reason": f"Outbound deferred — {quiet_dt:%H:%M} IST is within "
+                                        "TRAI quiet hours (20:00–09:00); will resume at 09:00.",
+                              "scheduled_for": "09:00 IST"}, outcome=Outcome.SUCCESS)
+        idx += 1
+
+    # --- Voice-attempt cap: 3rd call in 72h blocked → fall back to WhatsApp. ---
+    assert voice_attempts_exhausted(2)  # the rule itself confirms the cap is hit
+    for fc in (FailureClass.SUBSCRIPTION_MANDATE, FailureClass.REALTIME_DEGRADATION):
+        txn = _new_txn(fc, idx, archetype=f"CLASS_{int(fc)}", is_at_risk=True,
+                       state=TransactionLifecycleState.RECOVERED, retry_count=0)
+        txn.metadata_json["ai_tag"] = "RECOVERY_CASE"
+        db.add(txn); db.commit(); db.refresh(txn)
+        _ingest_diagnose(db, txn, fc)
+        for _ in range(2):  # two voice attempts already made
+            record_audit(db, transaction_id=txn.transaction_id, node_name=NodeName.EXECUTE_INTERVENTION,
+                         action_type=ActionType.INTERVENTION_DISPATCH,
+                         payload={"action": InterventionAction.VOICE_CALL.value,
+                                  "channel": InterventionChannel.VOICE.value}, outcome=Outcome.SUCCESS)
+        _record_stop(db, txn.transaction_id, StoppingRule.VOICE_ATTEMPT_CAP,
+                     "2 voice attempts in 72h reached — further calls blocked; switched to WhatsApp.")
+        record_audit(db, transaction_id=txn.transaction_id, node_name=NodeName.EXECUTE_INTERVENTION,
+                     action_type=ActionType.INTERVENTION_DISPATCH,
+                     payload={"action": InterventionAction.SEND_WHATSAPP.value,
+                              "channel": InterventionChannel.WHATSAPP.value}, outcome=Outcome.SUCCESS)
+        record_audit(db, transaction_id=txn.transaction_id, node_name=NodeName.RECONCILE,
+                     action_type=ActionType.STATE_TRANSITION,
+                     payload={"disposition": "RECOVERED"}, outcome=Outcome.SUCCESS)
+        idx += 1
+
+    # --- Explicit cancel: customer asks to cancel → workflow stops immediately. ---
+    verdict = screen_user_message("please cancel my subscription")
+    assert verdict.rule is StoppingRule.EXPLICIT_CANCEL  # the screener confirms it
+    txn = _new_txn(FailureClass.SUBSCRIPTION_MANDATE, idx, archetype="CLASS_3",
+                   is_at_risk=True, state=TransactionLifecycleState.CANCELLED)
+    txn.metadata_json["ai_tag"] = "RECOVERY_CASE"
+    db.add(txn); db.commit(); db.refresh(txn)
+    _ingest_diagnose(db, txn, FailureClass.SUBSCRIPTION_MANDATE)
+    _record_stop(db, txn.transaction_id, StoppingRule.EXPLICIT_CANCEL, verdict.reason)
     db.commit()
 
 
