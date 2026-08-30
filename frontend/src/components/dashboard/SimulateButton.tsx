@@ -8,9 +8,9 @@ import { useDashboardRefresh } from "@/lib/dashboard/refresh";
 /** Injects a fresh, unworked failed transaction for the operator to run REX on. */
 export default function SimulateButton({
   failureClass,
-  accent = "var(--d-accent)",
 }: {
   failureClass?: number;
+  /** Deprecated — the button is now a neutral grey regardless of class colour. */
   accent?: string;
 }) {
   const { d } = useDash();
@@ -32,8 +32,8 @@ export default function SimulateButton({
     <button
       onClick={go}
       disabled={busy}
-      className="rounded-lg border px-3 py-1.5 text-[12.5px] font-semibold transition-colors disabled:opacity-60"
-      style={{ borderColor: accent, color: accent, background: "transparent" }}
+      className="rounded-lg border px-3 py-1.5 text-[12.5px] font-semibold transition-colors hover:bg-[var(--d-surface-2)] disabled:opacity-60"
+      style={{ borderColor: "var(--d-border)", color: "var(--d-muted)", background: "var(--d-surface)" }}
     >
       {busy ? d.run.simulating : `+ ${d.run.simulate}`}
     </button>
