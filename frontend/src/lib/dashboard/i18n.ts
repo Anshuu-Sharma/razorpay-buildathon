@@ -360,6 +360,10 @@ const DASH = {
       navigating: "Opening that view…",
       error: "Something went wrong — please try again.",
       clear: "Clear chat",
+      recoverAll: (n: number) => `Recover all ${n}`,
+      recoverOne: "Just one",
+      batchRunning: "Working the queue…",
+      didBatch: (rec: number, total: number) => `Done — recovered ${rec} of ${total}.`,
     },
     // Closed-set enum values that surface in the UI (diagnoses, playbooks,
     // channels). Translating them here keeps the whole surface in-language;
@@ -756,6 +760,10 @@ const DASH = {
       navigating: "वह व्यू खोल रहा हूँ…",
       error: "कुछ गड़बड़ हुई — कृपया फिर प्रयास करें।",
       clear: "चैट साफ़ करें",
+      recoverAll: (n: number) => `सभी ${n} वसूल करें`,
+      recoverOne: "सिर्फ़ एक",
+      batchRunning: "क्यू पर काम हो रहा है…",
+      didBatch: (rec: number, total: number) => `हो गया — ${total} में से ${rec} वसूल किए।`,
     },
     vocab: {
       rootCause: {

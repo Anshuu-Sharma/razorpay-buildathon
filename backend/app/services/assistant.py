@@ -62,6 +62,7 @@ _STATUS_WORDS = {
     "waiting": "WAITING",
 }
 _RUN_WORDS = ("recover", "handle", "chase", "work on", "work this", "fix", "pursue")
+_BATCH_WORDS = ("all", "these", "them", "every", "each", "list", "queue", "bunch", "batch", "everything")
 _NAV_WORDS = {
     "overview": "overview", "dashboard": "overview",
     "transaction": "transactions",
@@ -131,6 +132,23 @@ def _prefer_runnable(rows: list[TransactionState]) -> str:
     return rows[0].transaction_id
 
 
+def _batch_candidates(db: Session, context: dict, limit: int = 25) -> list[str]:
+    """Runnable cases within the operator's current view — the set a batch
+    recovery ("recover all / these") targets."""
+    cls = context.get("class_filter") or _class_from_route(context.get("route"))
+    status = context.get("status_filter")
+    out = []
+    for t in db.query(TransactionState).all():
+        if t.current_state not in _RUNNABLE_STATES:
+            continue
+        if cls and int(t.failure_class) != int(cls):
+            continue
+        if status and t.current_state.value != status:
+            continue
+        out.append(t.transaction_id)
+    return out[:limit]
+
+
 # --- grounding --------------------------------------------------------------
 
 def _catalog(db: Session) -> list[dict]:
@@ -175,8 +193,10 @@ _INTENT_GUIDE = (
     "Choose exactly one intent:\n"
     "- answer: the operator is asking a question (rate, totals, status, which class is worst, "
     "what a term means). Do NOT emit an action; put the grounded answer in 'reply'.\n"
-    "- run_recovery: the operator wants REX to work/recover/chase a specific case. Set "
-    "transaction_ref.\n"
+    "- run_recovery: the operator wants REX to work/recover/chase cases. For ONE named case, "
+    "set transaction_ref and scope 'one'. For MULTIPLE ('recover all', 'recover these', 'the "
+    "pending ones', 'this whole list'), set scope 'batch' and leave transaction_ref null — the "
+    "cases come from the current view.\n"
     "- set_status: the operator wants a case's outcome changed (mark recovered, escalate, "
     "cancel, fail). Set transaction_ref and status. Phrase 'reply' as a PROPOSAL awaiting the "
     "operator's confirmation (e.g. \"I'll escalate this — confirm?\"), never as already done.\n"
@@ -211,9 +231,46 @@ _SCHEMA_HINT = (
     '"CANCELLED","FAILED"]|null (PENDING = the not-yet-worked / recoverable queue), '
     '"note": string|null, '
     '"route": string|null, '
+    '"scope": one of ["one","batch"]|null (only for run_recovery), '
     '"reply": a short natural-language reply in the operator\'s language}. '
     "No prose outside the JSON."
 )
+
+
+_CLASS_NAMES = {
+    1: "Failed Payments", 2: "Abandoned Checkouts",
+    3: "Failed Subscriptions", 4: "Overdue Invoices",
+}
+_PAGE_NAMES = {
+    "/mission-control": "Overview",
+    "/mission-control/transactions": "Transactions",
+    "/mission-control/escalations": "Escalations",
+    "/mission-control/audit": "Audit Log",
+    "/mission-control/compliance": "Stopping Rules",
+    "/mission-control/policy": "Policy Inspector",
+}
+
+
+def _class_from_route(route: str | None) -> int | None:
+    m = re.search(r"/mission-control/class/([1-4])", route or "")
+    return int(m.group(1)) if m else None
+
+
+def _describe_screen(context: dict) -> str:
+    route = context.get("route") or ""
+    cls = context.get("class_filter") or _class_from_route(route)
+    status = context.get("status_filter")
+    search = context.get("search")
+    if cls:
+        where = f"the {_CLASS_NAMES.get(int(cls), 'class ' + str(cls))} page"
+    else:
+        where = _PAGE_NAMES.get(route, "the dashboard")
+    bits = [f"The operator is viewing {where}"]
+    if status:
+        bits.append(f"filtered to status {status}")
+    if search:
+        bits.append(f"searching for {search!r}")
+    return ", ".join(bits) + "."
 
 
 def _prompt(message: str, db: Session, context: dict, locale: str) -> str:
@@ -235,6 +292,9 @@ def _prompt(message: str, db: Session, context: dict, locale: str) -> str:
         "question with intent 'answer' and no action.\n\n"
         f"Live metrics: {json.dumps(metrics)}\n"
         f"Transactions: {json.dumps(catalog)}\n"
+        f"Current view: {_describe_screen(context)} "
+        "When the operator says 'this page', 'these', 'this list', 'here', or 'what I'm "
+        "looking at', they mean this view — its class and filter scope the cases they mean.\n"
         f"Currently open transaction id: {focused!r} (this is what 'this'/'current' refer to).\n\n"
         f"Operator message: {message!r}\n\n"
         f"{_SCHEMA_HINT}"
@@ -279,7 +339,9 @@ def _fallback_parse(message: str, db: Session, context: dict, locale: str) -> di
                 "note": note, "reply": _reply_for("add_note", locale)}
 
     if not question and any(w in text for w in _RUN_WORDS):
-        return {"intent": "run_recovery", "transaction_ref": _ref_from_text(text, context),
+        batch = any(w in text for w in _BATCH_WORDS)
+        return {"intent": "run_recovery", "scope": "batch" if batch else "one",
+                "transaction_ref": None if batch else _ref_from_text(text, context),
                 "reply": _reply_for("run_recovery", locale)}
 
     if any(w in text for w in ("show", "open", "go to", "take me", "navigate", "filter")):
@@ -382,6 +444,24 @@ def _build(db: Session, parsed: dict, context: dict, locale: str) -> dict:
                 "action": {"type": "navigate", "route": path, "requires_confirmation": False,
                            "transaction_id": None, "status": status_filter, "note": None}}
 
+    # Batch recovery — the operator meant several cases ("recover all / these"),
+    # scoped to what they're viewing. REX offers all-or-one rather than guessing.
+    if intent == "run_recovery" and parsed.get("scope") == "batch":
+        ids = _batch_candidates(db, context)
+        if not ids:
+            msg = ("इस स्क्रीन पर अभी वसूली के लिए कोई केस नहीं है।" if locale == "hi"
+                   else "There are no recoverable cases on this screen right now.")
+            return {"reply": reply or msg, "action": None}
+        n = len(ids)
+        ask = (f"आप यहाँ {n} वसूली-योग्य केस देख रहे हैं। सभी {n} वसूल करूँ, या सिर्फ़ एक?"
+               if locale == "hi"
+               else f"You're viewing {n} recoverable case{'s' if n > 1 else ''} here. "
+                    f"Recover all {n}, or just one?")
+        return {"reply": reply or ask,
+                "action": {"type": "run_recovery", "scope": "batch", "transaction_ids": ids,
+                           "transaction_id": ids[0], "status": None, "note": None,
+                           "route": None, "requires_confirmation": False}}
+
     # The remaining intents act on a specific transaction.
     txn_id = resolve_transaction(db, parsed.get("transaction_ref"), context)
     if not txn_id:
@@ -403,10 +483,10 @@ def _build(db: Session, parsed: dict, context: dict, locale: str) -> dict:
                 "action": {"type": "add_note", "transaction_id": txn_id, "note": note,
                            "status": None, "route": None, "requires_confirmation": False}}
 
-    # run_recovery
+    # run_recovery — single case
     return {"reply": reply or _reply_for("run_recovery", locale),
-            "action": {"type": "run_recovery", "transaction_id": txn_id,
-                       "status": None, "note": None, "route": None,
+            "action": {"type": "run_recovery", "scope": "one", "transaction_id": txn_id,
+                       "transaction_ids": None, "status": None, "note": None, "route": None,
                        "requires_confirmation": False}}
 
 

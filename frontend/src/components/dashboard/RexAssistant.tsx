@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { addNote, setStatus } from "@/lib/dashboard/api";
+import { addNote, recoverBatch, setStatus } from "@/lib/dashboard/api";
 import type { AssistantAction } from "@/lib/dashboard/api";
 import { inr } from "@/lib/dashboard/format";
 import { useDash, tVocab } from "@/lib/dashboard/i18n";
@@ -31,20 +31,22 @@ interface Props {
 }
 
 export default function RexAssistant({ run, chat, focusedId, open, setOpen }: Props) {
-  const { d } = useDash();
+  const { d, locale } = useDash();
   const router = useRouter();
   const pathname = usePathname();
   const { refresh } = useDashboardRefresh();
-  const { setStatus: setExplorerStatus } = useExplorerFilter();
+  const { status: explorerStatus, setStatus: setExplorerStatus, query: explorerQuery } =
+    useExplorerFilter();
   const [input, setInput] = useState("");
   const [pending, setPending] = useState<{ txnId: string; status: string } | null>(null);
+  const [batch, setBatch] = useState<{ ids: string[] } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Keep the thread pinned to the newest line as it grows.
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [chat.messages.length, run.feed.length, run.phase, pending, chat.busy]);
+  }, [chat.messages.length, run.feed.length, run.phase, pending, batch, chat.busy]);
 
   const dispatch = async (action: AssistantAction) => {
     switch (action.type) {
@@ -54,7 +56,11 @@ export default function RexAssistant({ run, chat, focusedId, open, setOpen }: Pr
         if (action.route) router.push(action.route);
         return;
       case "run_recovery":
-        if (action.transaction_id) run.start(action.transaction_id, "");
+        if (action.scope === "batch" && action.transaction_ids?.length) {
+          setBatch({ ids: action.transaction_ids }); // ask all-or-one
+        } else if (action.transaction_id) {
+          run.start(action.transaction_id, "");
+        }
         return;
       case "set_status":
         if (action.transaction_id && action.status)
@@ -70,12 +76,40 @@ export default function RexAssistant({ run, chat, focusedId, open, setOpen }: Pr
     }
   };
 
+  const classFromPath = (p: string): number | null => {
+    const m = p.match(/\/mission-control\/class\/([1-4])/);
+    return m ? Number(m[1]) : null;
+  };
+
   const submit = async () => {
     const text = input.trim();
     if (!text || chat.busy) return;
     setInput("");
-    const res = await chat.send(text, { focused_transaction_id: focusedId, route: pathname });
+    const res = await chat.send(text, {
+      focused_transaction_id: focusedId,
+      route: pathname,
+      class_filter: classFromPath(pathname),
+      status_filter: explorerStatus || null,
+      search: explorerQuery || null,
+    });
     if (res?.action) await dispatch(res.action);
+  };
+
+  const runBatchAll = async () => {
+    if (!batch) return;
+    const ids = batch.ids;
+    setBatch(null);
+    chat.push("rex", d.assistant.batchRunning);
+    const res = await recoverBatch(ids, locale);
+    refresh();
+    chat.push("rex", d.assistant.didBatch(res.recovered, res.total));
+  };
+
+  const runBatchOne = () => {
+    if (!batch) return;
+    const first = batch.ids[0];
+    setBatch(null);
+    run.start(first, "");
   };
 
   const confirmStatus = async () => {
@@ -288,6 +322,38 @@ export default function RexAssistant({ run, chat, focusedId, open, setOpen }: Pr
                     </button>
                     <button
                       onClick={() => { setPending(null); chat.push("rex", d.assistant.declined); }}
+                      className="rounded-lg px-3 py-1.5 text-[12px] font-medium"
+                      style={{ background: "var(--d-surface)", border: "1px solid var(--d-border)", color: "var(--d-muted)" }}
+                    >
+                      {d.assistant.cancel}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Batch recovery — all or one */}
+              {batch ? (
+                <div
+                  className="rounded-xl px-3 py-3"
+                  style={{ background: "var(--d-surface-2)", border: "1px solid var(--d-border)" }}
+                >
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={runBatchAll}
+                      className="rounded-lg px-3 py-1.5 text-[12px] font-semibold text-white"
+                      style={{ background: "var(--d-accent)" }}
+                    >
+                      {d.assistant.recoverAll(batch.ids.length)}
+                    </button>
+                    <button
+                      onClick={runBatchOne}
+                      className="rounded-lg px-3 py-1.5 text-[12px] font-semibold text-white"
+                      style={{ background: "var(--d-ink)" }}
+                    >
+                      {d.assistant.recoverOne}
+                    </button>
+                    <button
+                      onClick={() => { setBatch(null); chat.push("rex", d.assistant.declined); }}
                       className="rounded-lg px-3 py-1.5 text-[12px] font-medium"
                       style={{ background: "var(--d-surface)", border: "1px solid var(--d-border)", color: "var(--d-muted)" }}
                     >

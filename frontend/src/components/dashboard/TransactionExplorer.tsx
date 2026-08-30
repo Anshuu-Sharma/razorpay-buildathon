@@ -65,9 +65,9 @@ export default function TransactionExplorer({ fixedClass }: { fixedClass?: numbe
   );
   const { data, error, loading } = useApi(load, [bump]);
 
-  const [q, setQ] = useState("");
   const [type, setType] = useState("");
-  const { status, setStatus } = useExplorerFilter(); // shared so REX can set it too
+  // Shared so REX can read the current view and set the status filter itself.
+  const { status, setStatus, query: q, setQuery: setQ } = useExplorerFilter();
   const [selected, setSelected] = useState<string | null>(null);
   const [convo, setConvo] = useState<
     { txnId: string; name: string; channel: "whatsapp" | "call" } | null

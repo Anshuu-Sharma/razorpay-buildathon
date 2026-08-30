@@ -370,6 +370,31 @@ def run_live(transaction_id: str, locale: str = "en", db: Session = Depends(get_
     return StreamingResponse(event_stream(), media_type="text/event-stream", headers=_SSE_HEADERS)
 
 
+class RecoverBatchBody(BaseModel):
+    transaction_ids: list[str] = Field(min_length=1, max_length=50)
+    locale: str = "en"
+
+
+@router.post("/transactions/recover-batch")
+def recover_batch(payload: RecoverBatchBody, db: Session = Depends(get_db)) -> dict:
+    """Recover several cases at once (the 'recover all' choice). Each runs through
+    the real recovery loop offline — template drafting, no live model — so a whole
+    queue clears in one call and REX can report the tally."""
+    loc = "hi" if payload.locale == "hi" else "en"
+    drafter = lambda d, t, p: draft_message(d, t, p, generate=None, locale=loc)  # noqa: E731
+    results = []
+    for tid in payload.transaction_ids:
+        if db.query(TransactionState).filter_by(transaction_id=tid).one_or_none() is None:
+            continue
+        final = None
+        for event, data in run_recovery(db, tid, pause=lambda _s: None, drafter=drafter):
+            if event == "complete":
+                final = data.get("final_state")
+        results.append({"transaction_id": tid, "final_state": final})
+    recovered = sum(1 for r in results if r["final_state"] == "RECOVERED")
+    return {"total": len(results), "recovered": recovered, "results": results}
+
+
 class StatusBody(BaseModel):
     status: TransactionLifecycleState
     note: str | None = Field(default=None, max_length=1000)

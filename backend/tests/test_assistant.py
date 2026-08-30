@@ -140,6 +140,46 @@ def test_navigate_ignores_invalid_status_filter(db_session):
     assert out["action"]["status"] is None
 
 
+def test_run_recovery_batch_asks_scope(db_session):
+    _txn(db_session, "a1", "One", fc=1, state=TransactionLifecycleState.PENDING)
+    _txn(db_session, "a2", "Two", fc=1, state=TransactionLifecycleState.PENDING)
+    _txn(db_session, "b1", "Three", fc=2, state=TransactionLifecycleState.PENDING)
+    out = interpret(
+        db_session, "recover all of these", locale="en",
+        context={"route": "/mission-control/class/1"},
+        generate=_gen({"intent": "run_recovery", "scope": "batch",
+                       "reply": "You're viewing 2 recoverable cases. Recover all 2, or just one?"}),
+    )
+    a = out["action"]
+    assert a["type"] == "run_recovery"
+    assert a["scope"] == "batch"
+    # Scoped to the Failed Payments page → only the two class-1 cases.
+    assert set(a["transaction_ids"]) == {"a1", "a2"}
+    assert "2" in out["reply"]
+
+
+def test_fallback_batch_detection(db_session):
+    _txn(db_session, "a1", "One", fc=1, state=TransactionLifecycleState.PENDING)
+
+    def boom(_p):
+        raise RuntimeError("model down")
+
+    out = interpret(db_session, "recover all these cases", locale="en",
+                    context={"route": "/mission-control/class/1"}, generate=boom)
+    assert out["action"]["scope"] == "batch"
+    assert out["action"]["transaction_ids"] == ["a1"]
+
+
+def test_recover_batch_endpoint(client, db_session):
+    _txn(db_session, "a1", "One", fc=1, state=TransactionLifecycleState.PENDING)
+    _txn(db_session, "a2", "Two", fc=1, state=TransactionLifecycleState.PENDING)
+    resp = client.post("/api/v1/transactions/recover-batch",
+                       json={"transaction_ids": ["a1", "a2"]})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["total"] == 2
+
+
 def test_answer_has_no_action(db_session):
     _txn(db_session, "t1", "Acme Corp", state=TransactionLifecycleState.RECOVERED)
     out = interpret(

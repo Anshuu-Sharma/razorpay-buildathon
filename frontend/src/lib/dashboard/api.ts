@@ -112,6 +112,8 @@ export interface AssistantAction {
   note: string | null;
   route: string | null;
   requires_confirmation: boolean;
+  scope?: "one" | "batch" | null;
+  transaction_ids?: string[] | null;
 }
 
 export interface AssistantReply {
@@ -123,6 +125,8 @@ export interface AssistantContext {
   route?: string | null;
   focused_transaction_id?: string | null;
   class_filter?: number | null;
+  status_filter?: string | null;
+  search?: string | null;
 }
 
 export const sendAssistantChat = (
@@ -130,6 +134,18 @@ export const sendAssistantChat = (
   locale: string,
   context: AssistantContext = {},
 ) => postJson<AssistantReply>("/assistant/chat", { message, locale, context });
+
+export interface RecoverBatchResult {
+  total: number;
+  recovered: number;
+  results: { transaction_id: string; final_state: string | null }[];
+}
+
+export const recoverBatch = (ids: string[], locale: string) =>
+  postJson<RecoverBatchResult>("/transactions/recover-batch", {
+    transaction_ids: ids,
+    locale,
+  });
 
 /** SSE URL for the live "REX works this case" run (consumed via EventSource).
  * ``locale`` (en|hi) drives the language REX drafts its outreach in. */
