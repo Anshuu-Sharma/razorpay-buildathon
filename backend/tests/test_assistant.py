@@ -67,17 +67,31 @@ def test_resolve_exact_name_duplicate_prefers_runnable(db_session):
 
 # --- intents ----------------------------------------------------------------
 
-def test_run_recovery_resolves_named_transaction(db_session):
+def test_run_recovery_single_asks_confirmation(db_session):
     _txn(db_session, "t1", "Acme Corp")
     out = interpret(
         db_session, "REX, recover the Acme invoice", locale="en",
         generate=_gen({"intent": "run_recovery", "transaction_ref": "Acme",
-                       "reply": "On it — recovering Acme's invoice now."}),
+                       "reply": "Shall I start recovery on Acme's case — confirm?"}),
     )
     assert out["action"]["type"] == "run_recovery"
+    assert out["action"]["scope"] == "one"
     assert out["action"]["transaction_id"] == "t1"
-    assert out["action"]["requires_confirmation"] is False
+    assert out["action"]["requires_confirmation"] is True  # chat recovery confirms first
     assert out["reply"]
+
+
+def test_run_recovery_named_customer_with_many_cases_asks_all_or_one(db_session):
+    # Same customer, two open cases → offer all-or-one rather than picking one.
+    _txn(db_session, "t1", "Ananya Nair", fc=1, state=TransactionLifecycleState.PENDING)
+    _txn(db_session, "t2", "Ananya Nair", fc=3, state=TransactionLifecycleState.PENDING)
+    out = interpret(
+        db_session, "recover ananya nair", locale="en",
+        generate=_gen({"intent": "run_recovery", "transaction_ref": "Ananya Nair",
+                       "reply": "Ananya has two open cases — all or one?"}),
+    )
+    assert out["action"]["scope"] == "batch"
+    assert set(out["action"]["transaction_ids"]) == {"t1", "t2"}
 
 
 def test_set_status_requires_confirmation(db_session):
@@ -160,6 +174,7 @@ def test_run_recovery_batch_asks_scope(db_session):
 
 def test_fallback_batch_detection(db_session):
     _txn(db_session, "a1", "One", fc=1, state=TransactionLifecycleState.PENDING)
+    _txn(db_session, "a2", "Two", fc=1, state=TransactionLifecycleState.PENDING)
 
     def boom(_p):
         raise RuntimeError("model down")
@@ -167,7 +182,7 @@ def test_fallback_batch_detection(db_session):
     out = interpret(db_session, "recover all these cases", locale="en",
                     context={"route": "/mission-control/class/1"}, generate=boom)
     assert out["action"]["scope"] == "batch"
-    assert out["action"]["transaction_ids"] == ["a1"]
+    assert set(out["action"]["transaction_ids"]) == {"a1", "a2"}
 
 
 def test_recover_batch_endpoint(client, db_session):

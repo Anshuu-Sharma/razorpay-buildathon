@@ -132,6 +132,34 @@ def _prefer_runnable(rows: list[TransactionState]) -> str:
     return rows[0].transaction_id
 
 
+def _recovery_candidates(db: Session, ref: str | None, context: dict) -> list[str]:
+    """Runnable cases a single-recovery request refers to. A named customer with
+    several open cases returns all of them (so REX can ask all-or-one); a unique
+    reference returns just one."""
+    focused = context.get("focused_transaction_id")
+    if not ref or ref.strip().lower() in _THIS_WORDS:
+        return [focused] if focused else []
+
+    r = ref.strip().lower()
+    txns = [t for t in db.query(TransactionState).all() if t.current_state in _RUNNABLE_STATES]
+
+    for t in txns:  # exact transaction id
+        if t.transaction_id.lower() == r:
+            return [t.transaction_id]
+
+    def _name(t) -> str:
+        return str((t.metadata_json or {}).get("customer_name", "")).lower()
+
+    exact = [t for t in txns if _name(t) == r]
+    if exact:
+        return [t.transaction_id for t in exact]
+
+    partial = [t for t in txns if r in _name(t)]
+    if partial and len({_name(t) for t in partial}) == 1:  # same customer, not ambiguous
+        return [t.transaction_id for t in partial]
+    return []
+
+
 def _batch_candidates(db: Session, context: dict, limit: int = 25) -> list[str]:
     """Runnable cases within the operator's current view — the set a batch
     recovery ("recover all / these") targets."""
@@ -400,7 +428,7 @@ def _answer_from_metrics(text: str, db: Session, locale: str) -> str:
 def _reply_for(intent: str, locale: str, *, status: str | None = None) -> str:
     hi = locale == "hi"
     if intent == "run_recovery":
-        return "ठीक है — REX अभी इस केस पर काम शुरू कर रहा है।" if hi else "On it — REX is working this case now."
+        return "इस केस पर वसूली शुरू करूँ — पुष्टि करें?" if hi else "Shall I start recovery on this case — confirm?"
     if intent == "set_status":
         return (f"इसे {status} पर सेट करूँ — पुष्टि करें?" if hi
                 else f"I'll set this to {status} — confirm?")
@@ -444,25 +472,37 @@ def _build(db: Session, parsed: dict, context: dict, locale: str) -> dict:
                 "action": {"type": "navigate", "route": path, "requires_confirmation": False,
                            "transaction_id": None, "status": status_filter, "note": None}}
 
-    # Batch recovery — the operator meant several cases ("recover all / these"),
-    # scoped to what they're viewing. REX offers all-or-one rather than guessing.
-    if intent == "run_recovery" and parsed.get("scope") == "batch":
-        ids = _batch_candidates(db, context)
-        if not ids:
-            msg = ("इस स्क्रीन पर अभी वसूली के लिए कोई केस नहीं है।" if locale == "hi"
-                   else "There are no recoverable cases on this screen right now.")
-            return {"reply": reply or msg, "action": None}
-        n = len(ids)
-        ask = (f"आप यहाँ {n} वसूली-योग्य केस देख रहे हैं। सभी {n} वसूल करूँ, या सिर्फ़ एक?"
-               if locale == "hi"
-               else f"You're viewing {n} recoverable case{'s' if n > 1 else ''} here. "
-                    f"Recover all {n}, or just one?")
-        return {"reply": reply or ask,
-                "action": {"type": "run_recovery", "scope": "batch", "transaction_ids": ids,
-                           "transaction_id": ids[0], "status": None, "note": None,
-                           "route": None, "requires_confirmation": False}}
+    if intent == "run_recovery":
+        # A plural request is scoped to the current view; otherwise to the
+        # referenced customer (who may have several open cases).
+        if parsed.get("scope") == "batch":
+            ids = _batch_candidates(db, context)
+        else:
+            ids = _recovery_candidates(db, parsed.get("transaction_ref"), context)
 
-    # The remaining intents act on a specific transaction.
+        if not ids:
+            msg = ("इसके लिए कोई वसूली-योग्य केस नहीं मिला। नाम बताइए या कोई केस खोलिए।"
+                   if locale == "hi"
+                   else "I couldn't find a recoverable case for that. Name one, or open one.")
+            return {"reply": reply or msg, "action": None}
+
+        if len(ids) > 1:  # several cases → let the operator choose all-or-one
+            n = len(ids)
+            ask = (f"इसके लिए {n} वसूली-योग्य केस हैं। सभी {n} वसूल करूँ, या सिर्फ़ एक?"
+                   if locale == "hi"
+                   else f"There are {n} recoverable cases here. Recover all {n}, or just one?")
+            return {"reply": reply or ask,
+                    "action": {"type": "run_recovery", "scope": "batch", "transaction_ids": ids,
+                               "transaction_id": ids[0], "status": None, "note": None,
+                               "route": None, "requires_confirmation": False}}
+
+        # Exactly one case → confirm before REX starts.
+        return {"reply": reply or _reply_for("run_recovery", locale),
+                "action": {"type": "run_recovery", "scope": "one", "transaction_id": ids[0],
+                           "transaction_ids": None, "status": None, "note": None, "route": None,
+                           "requires_confirmation": True}}
+
+    # set_status / add_note act on a specific transaction.
     txn_id = resolve_transaction(db, parsed.get("transaction_ref"), context)
     if not txn_id:
         clarify = ("किस ट्रांज़ैक्शन के लिए? नाम या आईडी बताइए।" if locale == "hi"
@@ -477,17 +517,11 @@ def _build(db: Session, parsed: dict, context: dict, locale: str) -> dict:
                 "action": {"type": "set_status", "transaction_id": txn_id, "status": status,
                            "note": None, "route": None, "requires_confirmation": True}}
 
-    if intent == "add_note":
-        note = (parsed.get("note") or "").strip()
-        return {"reply": reply or _reply_for("add_note", locale),
-                "action": {"type": "add_note", "transaction_id": txn_id, "note": note,
-                           "status": None, "route": None, "requires_confirmation": False}}
-
-    # run_recovery — single case
-    return {"reply": reply or _reply_for("run_recovery", locale),
-            "action": {"type": "run_recovery", "scope": "one", "transaction_id": txn_id,
-                       "transaction_ids": None, "status": None, "note": None, "route": None,
-                       "requires_confirmation": False}}
+    # add_note (run_recovery and set_status handled above)
+    note = (parsed.get("note") or "").strip()
+    return {"reply": reply or _reply_for("add_note", locale),
+            "action": {"type": "add_note", "transaction_id": txn_id, "note": note,
+                       "status": None, "route": None, "requires_confirmation": False}}
 
 
 _UNSET = object()  # "no generator supplied" — build the default; None means offline.

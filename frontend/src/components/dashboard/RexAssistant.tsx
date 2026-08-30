@@ -39,6 +39,7 @@ export default function RexAssistant({ run, chat, focusedId, open, setOpen }: Pr
     useExplorerFilter();
   const [input, setInput] = useState("");
   const [pending, setPending] = useState<{ txnId: string; status: string } | null>(null);
+  const [pendingRun, setPendingRun] = useState<{ txnId: string } | null>(null);
   const [batch, setBatch] = useState<{ ids: string[] } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -46,7 +47,7 @@ export default function RexAssistant({ run, chat, focusedId, open, setOpen }: Pr
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [chat.messages.length, run.feed.length, run.phase, pending, batch, chat.busy]);
+  }, [chat.messages.length, run.feed.length, run.phase, pending, pendingRun, batch, chat.busy]);
 
   const dispatch = async (action: AssistantAction) => {
     switch (action.type) {
@@ -59,7 +60,7 @@ export default function RexAssistant({ run, chat, focusedId, open, setOpen }: Pr
         if (action.scope === "batch" && action.transaction_ids?.length) {
           setBatch({ ids: action.transaction_ids }); // ask all-or-one
         } else if (action.transaction_id) {
-          run.start(action.transaction_id, "");
+          setPendingRun({ txnId: action.transaction_id }); // confirm before starting
         }
         return;
       case "set_status":
@@ -110,6 +111,13 @@ export default function RexAssistant({ run, chat, focusedId, open, setOpen }: Pr
     const first = batch.ids[0];
     setBatch(null);
     run.start(first, "");
+  };
+
+  const confirmRun = () => {
+    if (!pendingRun) return;
+    const { txnId } = pendingRun;
+    setPendingRun(null);
+    run.start(txnId, "");
   };
 
   const confirmStatus = async () => {
@@ -322,6 +330,31 @@ export default function RexAssistant({ run, chat, focusedId, open, setOpen }: Pr
                     </button>
                     <button
                       onClick={() => { setPending(null); chat.push("rex", d.assistant.declined); }}
+                      className="rounded-lg px-3 py-1.5 text-[12px] font-medium"
+                      style={{ background: "var(--d-surface)", border: "1px solid var(--d-border)", color: "var(--d-muted)" }}
+                    >
+                      {d.assistant.cancel}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Single recovery — confirm before REX starts */}
+              {pendingRun ? (
+                <div
+                  className="rounded-xl px-3 py-3"
+                  style={{ background: "var(--d-surface-2)", border: "1px solid var(--d-border)" }}
+                >
+                  <div className="flex gap-2">
+                    <button
+                      onClick={confirmRun}
+                      className="rounded-lg px-3 py-1.5 text-[12px] font-semibold text-white"
+                      style={{ background: "var(--d-accent)" }}
+                    >
+                      {d.assistant.startRecovery}
+                    </button>
+                    <button
+                      onClick={() => { setPendingRun(null); chat.push("rex", d.assistant.declined); }}
                       className="rounded-lg px-3 py-1.5 text-[12px] font-medium"
                       style={{ background: "var(--d-surface)", border: "1px solid var(--d-border)", color: "var(--d-muted)" }}
                     >
