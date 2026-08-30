@@ -2,7 +2,7 @@
 
 import type { TransactionRow, LifecycleStatus } from "@/lib/dashboard/types";
 import { inr } from "@/lib/dashboard/format";
-import { useDash, relTime, durTime, tVocab } from "@/lib/dashboard/i18n";
+import { useDash, durTime, tVocab } from "@/lib/dashboard/i18n";
 import { CLASS_COLOR, aiTagTone, statusTone } from "@/lib/dashboard/status";
 import type { DashStrings } from "@/lib/dashboard/i18n";
 
@@ -141,8 +141,8 @@ export default function TransactionTable({
                 <td className={`${TD} d-num text-right text-[12px]`} style={{ color: "var(--d-muted)" }}>
                   {durTime(r.time_to_recovery_seconds, d)}
                 </td>
-                <td className={`${TD} text-right text-[12px]`} style={{ color: "var(--d-faint)" }}>
-                  {relTime(r.created_at, d)}
+                <td className={`${TD} d-num text-right text-[12px]`} style={{ color: "var(--d-faint)" }}>
+                  {new Date(r.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" })}
                 </td>
                 {onOpenConversation ? (
                   <td className={`${TD} whitespace-nowrap text-center`}>

@@ -101,7 +101,7 @@ const DASH = {
         playbook: "Playbook",
         channel: "Channel",
         ttr: "TTR",
-        when: "When",
+        when: "Date",
       },
     },
     classpg: {
@@ -585,7 +585,7 @@ const DASH = {
         playbook: "प्लेबुक",
         channel: "चैनल",
         ttr: "TTR",
-        when: "कब",
+        when: "तारीख",
       },
     },
     classpg: {
