@@ -22,6 +22,8 @@ from typing import Literal
 from app.enums import (
     ActionType,
     FailureClass,
+    InterventionAction,
+    InterventionChannel,
     MessageDirection,
     MessageSender,
     MessageStatus,
@@ -30,6 +32,7 @@ from app.enums import (
     StoppingRule,
     TransactionLifecycleState,
 )
+from app.services.escalation import enqueue_escalation
 from app.models import (
     AuditTrail,
     CallSession,
@@ -243,6 +246,7 @@ def seed_batch(db, *, spec: list | None = None, now: datetime | None = None) -> 
                 _seed_case(db, graph, item, index)
             index += 1
 
+    _seed_bulk(db, per_class=20)
     _spread_timestamps(db, now)
     _seed_trackers(db, now)
 
@@ -251,6 +255,71 @@ def seed_batch(db, *, spec: list | None = None, now: datetime | None = None) -> 
     for t in rows:
         by_state[t.current_state.value] = by_state.get(t.current_state.value, 0) + 1
     return BatchResult(seeded=len(rows), by_state=by_state)
+
+
+# A uniform spread of outcomes, seeded per class so every state is well
+# represented in the tables, trackers, metrics and escalation queue.
+_BULK_STATES = [
+    TransactionLifecycleState.RECOVERED,
+    TransactionLifecycleState.PENDING,
+    TransactionLifecycleState.INTERVENING,
+    TransactionLifecycleState.ESCALATED,
+    TransactionLifecycleState.FAILED,
+]
+_BULK_ACTION = {
+    FailureClass.REALTIME_DEGRADATION: (InterventionAction.GENERATE_PAYMENT_LINK, InterventionChannel.PAYMENT_LINK),
+    FailureClass.CHECKOUT_ABANDONMENT: (InterventionAction.SEND_WHATSAPP, InterventionChannel.WHATSAPP),
+    FailureClass.SUBSCRIPTION_MANDATE: (InterventionAction.RETRY_CHARGE, InterventionChannel.PAYMENT_LINK),
+    FailureClass.B2B_RECEIVABLES: (InterventionAction.SEND_WHATSAPP, InterventionChannel.WHATSAPP),
+}
+_BULK_OUTCOMES = ["recovered", "optout", "dispute", "p2p"]
+
+
+def _bulk_audit(db, txn: TransactionState, fc: FailureClass, state: TransactionLifecycleState) -> None:
+    """A short, state-consistent trail so a bulk case reads like a real one."""
+    profile = _CLASS_PROFILE[fc]
+    playbook = _DEFAULT_PLAYBOOK[fc].value
+    record_audit(db, transaction_id=txn.transaction_id, node_name=NodeName.INGEST,
+                 action_type=ActionType.STATE_TRANSITION,
+                 payload={"event": "FLAGGED", "class": profile["label"]}, outcome=Outcome.SUCCESS)
+    record_audit(db, transaction_id=txn.transaction_id, node_name=NodeName.DIAGNOSE,
+                 action_type=ActionType.STATE_TRANSITION,
+                 payload={"root_cause": profile["root_cause"], "recommended_playbook": playbook,
+                          "confidence": profile["confidence"]}, outcome=Outcome.SUCCESS)
+    if state in (TransactionLifecycleState.INTERVENING, TransactionLifecycleState.RECOVERED,
+                 TransactionLifecycleState.ESCALATED):
+        action, channel = _BULK_ACTION[fc]
+        record_audit(db, transaction_id=txn.transaction_id, node_name=NodeName.EXECUTE_INTERVENTION,
+                     action_type=ActionType.INTERVENTION_DISPATCH,
+                     payload={"action": action.value, "channel": channel.value, "playbook": playbook},
+                     outcome=Outcome.SUCCESS)
+    if state == TransactionLifecycleState.RECOVERED:
+        record_audit(db, transaction_id=txn.transaction_id, node_name=NodeName.RECONCILE,
+                     action_type=ActionType.STATE_TRANSITION,
+                     payload={"disposition": "RECOVERED"}, outcome=Outcome.SUCCESS)
+    if state == TransactionLifecycleState.ESCALATED:
+        enqueue_escalation(db, transaction_id=txn.transaction_id,
+                           reason="Routed to a human for judgement.", rule=None)
+
+
+def _seed_bulk(db, *, per_class: int = 20) -> None:
+    index = 10_000  # keep well clear of the main batch's customer cycling
+    for fc in FailureClass:
+        for k in range(per_class):
+            state = _BULK_STATES[k % len(_BULK_STATES)]
+            txn = _new_txn(
+                fc, index, archetype=f"CLASS_{int(fc)}", is_at_risk=True, state=state,
+                retry_count=(1 + k % 2) if state == TransactionLifecycleState.INTERVENING else 0,
+            )
+            txn.metadata_json["ai_tag"] = "RECOVERY_CASE"
+            if state == TransactionLifecycleState.PENDING:
+                txn.metadata_json.update({"unworked": True, "run_outcome": _BULK_OUTCOMES[k % 4]})
+            db.add(txn)
+            db.commit()
+            db.refresh(txn)
+            _bulk_audit(db, txn, fc, state)
+            index += 1
+    db.commit()
 
 
 def _tracker_txn(db, fc: FailureClass, name: str, amount_inr: float,

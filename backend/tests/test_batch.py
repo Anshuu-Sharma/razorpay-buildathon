@@ -7,6 +7,24 @@ from app.models import AuditTrail, TransactionState
 from app.services.batch import DEFAULT_BATCH, seed_batch
 
 
+def test_seed_bulk_is_uniform_per_class(db_session):
+    from collections import Counter
+
+    from app.services.batch import _seed_bulk
+
+    _seed_bulk(db_session, per_class=20)
+    rows = db_session.query(TransactionState).all()
+    for fc in FailureClass:
+        cls = [t for t in rows if int(t.failure_class) == int(fc)]
+        assert len(cls) == 20
+        states = Counter(t.current_state.value for t in cls)
+        assert len(states) == 5 and all(v == 4 for v in states.values())
+    # Escalated bulk rows land on the human queue.
+    from app.models import EscalationQueue
+
+    assert db_session.query(EscalationQueue).count() == 4 * 4  # 4 escalated per class
+
+
 def test_seed_batch_populates_transactions(db_session):
     result = seed_batch(db_session)
     rows = db_session.query(TransactionState).all()
