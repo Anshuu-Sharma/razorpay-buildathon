@@ -1,6 +1,6 @@
 # REX — Revenue Execution Engine
 
-An autonomous revenue-recovery agent for Razorpay. When a payment fails, REX
+An autonomous revenue-recovery agent for Indian businesses. When a payment fails, REX
 figures out *why*, decides what to do about it, and works the customer back to a
 successful payment — over WhatsApp and voice, within the guardrails a payments
 company actually has to respect. Every decision is written to an immutable audit

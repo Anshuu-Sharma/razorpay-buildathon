@@ -26,7 +26,7 @@ export default function Navbar() {
           R
         </span>
         <span className="font-mono text-sm uppercase tracking-[0.28em] text-fg/90 transition-colors group-hover:text-fg">
-          Razorpay
+          REX
         </span>
       </Link>
 
