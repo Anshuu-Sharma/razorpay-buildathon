@@ -29,16 +29,18 @@ export default function PhoneFrame({
 }) {
   return (
     <div className="relative select-none" style={{ width }}>
+      {/* Screen content sits BEHIND the frame; it shows through the transparent
+          glass while the opaque bezel (on top) masks its edges. */}
+      <div className="absolute z-0 overflow-hidden" style={{ ...SCREEN, ...screenStyle }}>
+        {children}
+      </div>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/phone/iphone_mock.png"
         alt=""
         draggable={false}
-        className="pointer-events-none block w-full"
+        className="pointer-events-none relative z-10 block w-full"
       />
-      <div className="absolute overflow-hidden" style={{ ...SCREEN, ...screenStyle }}>
-        {children}
-      </div>
     </div>
   );
 }
