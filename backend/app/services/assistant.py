@@ -56,6 +56,10 @@ _STATUS_WORDS = {
     "fail": "FAILED",
     "intervene": "INTERVENING",
     "intervening": "INTERVENING",
+    "pending": "PENDING",
+    "unworked": "PENDING",
+    "not started": "PENDING",
+    "waiting": "WAITING",
 }
 _RUN_WORDS = ("recover", "handle", "chase", "work on", "work this", "fix", "pursue")
 _NAV_WORDS = {
@@ -178,8 +182,9 @@ _INTENT_GUIDE = (
     "operator's confirmation (e.g. \"I'll escalate this — confirm?\"), never as already done.\n"
     "- add_note: the operator wants to attach a note. Set transaction_ref and note.\n"
     "- navigate: the operator wants to open/show/go to a view. Set route. If they also ask "
-    "for a specific outcome (e.g. 'recovered failed payments', 'escalated invoices'), set "
-    "status to that outcome as well — it becomes a filter on the table.\n"
+    "for a specific outcome (e.g. 'recovered failed payments', 'escalated invoices', "
+    "'pending / recoverable / not-yet-worked payments'), set status to that outcome as well — "
+    "it becomes a filter on the table. Pending cases are the ones REX can still recover.\n"
 )
 
 _ROUTE_GUIDE = (
@@ -202,7 +207,8 @@ _SCHEMA_HINT = (
     'Return ONLY minified JSON with these keys: '
     '{"intent": one of ["run_recovery","set_status","add_note","navigate","answer"], '
     '"transaction_ref": string|null, '
-    '"status": one of ["RECOVERED","ESCALATED","CANCELLED","FAILED","INTERVENING"]|null, '
+    '"status": one of ["PENDING","DIAGNOSING","INTERVENING","WAITING","RECOVERED","ESCALATED",'
+    '"CANCELLED","FAILED"]|null (PENDING = the not-yet-worked / recoverable queue), '
     '"note": string|null, '
     '"route": string|null, '
     '"reply": a short natural-language reply in the operator\'s language}. '
@@ -279,7 +285,12 @@ def _fallback_parse(message: str, db: Session, context: dict, locale: str) -> di
     if any(w in text for w in ("show", "open", "go to", "take me", "navigate", "filter")):
         route = _route_from_text(text)
         if route:
-            status = next((v for k, v in _STATUS_WORDS.items() if k in text), None)
+            # "failed"/"fail" name class 1 (Failed Payments), not a FAILED filter,
+            # so they don't count as a status filter on navigation.
+            status = next(
+                (v for k, v in _STATUS_WORDS.items() if k in text and k not in ("fail", "failed")),
+                None,
+            )
             return {"intent": "navigate", "route": route, "status": status,
                     "reply": _reply_for("navigate", locale)}
 

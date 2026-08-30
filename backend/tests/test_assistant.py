@@ -193,6 +193,27 @@ def test_chat_endpoint_returns_run_action(client, db_session):
     assert action["transaction_id"] == "t1"
 
 
+def test_fallback_navigate_pending_filter(db_session):
+    def boom(_p):
+        raise RuntimeError("model down")
+
+    out = interpret(db_session, "show pending failed payments", locale="en", generate=boom)
+    assert out["action"]["type"] == "navigate"
+    assert out["action"]["route"] == "/mission-control/class/1"
+    assert out["action"]["status"] == "PENDING"
+
+
+def test_fallback_navigate_plain_class_has_no_status(db_session):
+    # "failed payments" names class 1; it must NOT become a FAILED-status filter.
+    def boom(_p):
+        raise RuntimeError("model down")
+
+    out = interpret(db_session, "show failed payments", locale="en", generate=boom)
+    assert out["action"]["type"] == "navigate"
+    assert out["action"]["route"] == "/mission-control/class/1"
+    assert out["action"]["status"] is None
+
+
 def test_fallback_escalate_sets_status(db_session):
     _txn(db_session, "t1", "Acme Corp")
 

@@ -15,9 +15,11 @@ import TransactionDrawer from "./TransactionDrawer";
 import { ConversationPanelHost } from "./ConversationPanel";
 
 const STATUSES: LifecycleStatus[] = [
-  "RECOVERED",
+  "PENDING",
+  "DIAGNOSING",
   "INTERVENING",
   "WAITING",
+  "RECOVERED",
   "ESCALATED",
   "CANCELLED",
   "FAILED",
