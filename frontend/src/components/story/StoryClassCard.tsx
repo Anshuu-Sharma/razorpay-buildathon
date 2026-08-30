@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { motion } from "framer-motion";
 import { getFailureClass } from "@/lib/failure-classes";
 import { useLocale } from "@/lib/i18n/LocaleProvider";
@@ -22,6 +21,8 @@ export default function StoryClassCard({ classId }: { classId: 1 | 2 | 3 | 4 }) 
   const fc = getFailureClass(classId);
   const copy = fc.copy[locale];
   const accent = ACCENT[classId];
+  // On the story page these read as "Problem N", not "Class N".
+  const tag = copy.tag.replace(/^Class/i, "Problem").replace(/^श्रेणी/, "समस्या");
 
   return (
     <motion.div
@@ -34,7 +35,7 @@ export default function StoryClassCard({ classId }: { classId: 1 | 2 | 3 | 4 }) 
       <div className="flex items-center gap-2">
         <span className="h-2.5 w-2.5 rounded-full" style={{ background: accent }} />
         <span className="font-mono text-[11px] uppercase tracking-[0.22em]" style={{ color: accent }}>
-          {copy.tag}
+          {tag}
         </span>
       </div>
 
@@ -47,15 +48,6 @@ export default function StoryClassCard({ classId }: { classId: 1 | 2 | 3 | 4 }) 
         </p>
         <p className="mt-1.5 text-sm leading-relaxed text-fg">{copy.rescue}</p>
       </div>
-
-      <Link
-        href={`/mission-control/live?class=${classId}`}
-        className="mt-5 inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-white transition-transform hover:scale-[1.03]"
-        style={{ background: "var(--color-clay)" }}
-      >
-        Watch REX recover it live
-        <span aria-hidden>→</span>
-      </Link>
     </motion.div>
   );
 }
