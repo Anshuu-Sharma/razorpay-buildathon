@@ -2,7 +2,7 @@
 
 import type { TransactionRow, LifecycleStatus } from "@/lib/dashboard/types";
 import { inr } from "@/lib/dashboard/format";
-import { useDash, durTime, tVocab } from "@/lib/dashboard/i18n";
+import { useDash, tVocab } from "@/lib/dashboard/i18n";
 import { CLASS_COLOR, statusTone } from "@/lib/dashboard/status";
 import type { DashStrings } from "@/lib/dashboard/i18n";
 
@@ -77,7 +77,6 @@ export default function TransactionTable({
             <th className={TH}>{col.status}</th>
             <th className={TH}>{col.playbook}</th>
             <th className={TH}>{col.channel}</th>
-            <th className={`${TH} text-right`}>{col.ttr}</th>
             <th className={`${TH} text-right`}>{col.when}</th>
             {onOpenConversation ? <th className={`${TH} text-center`} /> : null}
           </tr>
@@ -124,9 +123,6 @@ export default function TransactionTable({
                 </td>
                 <td className={`${TD} text-[12px]`} style={{ color: "var(--d-muted)" }}>
                   {tVocab("channel", r.channel, d)}
-                </td>
-                <td className={`${TD} d-num text-right text-[12px]`} style={{ color: "var(--d-muted)" }}>
-                  {durTime(r.time_to_recovery_seconds, d)}
                 </td>
                 <td className={`${TD} d-num text-right text-[12px]`} style={{ color: "var(--d-faint)" }}>
                   {new Date(r.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" })}
