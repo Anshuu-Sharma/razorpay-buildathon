@@ -95,6 +95,61 @@ export interface ScreenResult {
 export const screenMessage = (message: string) =>
   postJson<ScreenResult>("/policy/screen", { message });
 
+export interface SubscriptionItem {
+  transaction_id: string;
+  serial: number;
+  customer_name: string;
+  plan: string;
+  amount_inr: number;
+  cycle: string;
+  next_debit_date: string;
+  salary_day: number;
+  mandate_status: string;
+  retry_count: number;
+  retry_cap: number;
+  predicted_fail: boolean;
+  status: string;
+}
+
+export interface InvoiceItem {
+  transaction_id: string;
+  serial: number;
+  buyer_name: string;
+  invoice_no: string;
+  amount_inr: number;
+  issue_date: string;
+  due_date: string;
+  terms: string;
+  days_overdue: number;
+  aging_bucket: string;
+  p2p_date: string | null;
+  next_reminder_date: string;
+  status: string;
+  open: boolean;
+}
+
+export const fetchSubscriptions = (signal?: AbortSignal) =>
+  getJson<SubscriptionItem[]>("/subscriptions", signal);
+
+export const fetchInvoices = (signal?: AbortSignal) =>
+  getJson<InvoiceItem[]>("/invoices", signal);
+
+export const addSubscription = (body: {
+  customer_name: string;
+  plan: string;
+  amount_inr: number;
+  next_debit_date: string;
+  salary_day: number;
+}) => postJson<SubscriptionItem>("/subscriptions", body);
+
+export const addInvoice = (body: {
+  buyer_name: string;
+  amount_inr: number;
+  issue_date: string;
+  due_date: string;
+  terms?: string;
+}) => postJson<InvoiceItem>("/invoices", body);
+
 export const fetchConversation = (id: string, signal?: AbortSignal) =>
   getJson<Conversation>(`/transactions/${encodeURIComponent(id)}/conversation`, signal);
 

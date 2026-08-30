@@ -6,6 +6,8 @@ import MiniStat from "@/components/dashboard/MiniStat";
 import ClassInfoButton from "@/components/dashboard/ClassInfoButton";
 import SimulateButton from "@/components/dashboard/SimulateButton";
 import TransactionExplorer from "@/components/dashboard/TransactionExplorer";
+import MandateCalendar from "@/components/dashboard/MandateCalendar";
+import ReceivablesBoard from "@/components/dashboard/ReceivablesBoard";
 import { ErrorState, Loading } from "@/components/dashboard/PageState";
 import { useApi } from "@/hooks/useApi";
 import { useIsClient } from "@/hooks/useIsClient";
@@ -80,6 +82,10 @@ export default function ClassPage() {
               </div>
             );
           })()}
+
+          {/* Per-class operational tracker, above the ledger */}
+          {id === 3 ? <MandateCalendar /> : null}
+          {id === 4 ? <ReceivablesBoard /> : null}
 
           {/* Class-filtered ledger */}
           <TransactionExplorer fixedClass={id} />
