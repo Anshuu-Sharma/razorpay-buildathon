@@ -166,7 +166,10 @@ export default function Landing() {
             </h2>
           </Reveal>
           <Reveal delay={0.25}>
-            <Link href="/story" className="btn-primary mt-8 text-base">
+            <Link
+              href="/story"
+              className="mt-8 inline-flex items-center gap-2 rounded-lg bg-white/10 px-6 py-3 text-base font-medium text-fg transition-colors hover:bg-white/[0.16]"
+            >
               {L.cta}
               <span aria-hidden>→</span>
             </Link>
