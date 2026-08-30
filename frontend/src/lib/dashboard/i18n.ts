@@ -395,6 +395,12 @@ const DASH = {
       batchRunning: "Working the queue…",
       didBatch: (rec: number, total: number) => `Done — recovered ${rec} of ${total}.`,
     },
+    cal: {
+      paid: "Paid",
+      pending: "Pending",
+      sent: "Request sent",
+      more: (n: number) => `+${n} more`,
+    },
     sub: {
       title: "Mandate & Renewal Calendar",
       desc: "Upcoming auto-debits — REX defers predicted failures to the salary window and sequences retries within the RBI cap.",
@@ -880,6 +886,12 @@ const DASH = {
       recoverOne: "सिर्फ़ एक",
       batchRunning: "क्यू पर काम हो रहा है…",
       didBatch: (rec: number, total: number) => `हो गया — ${total} में से ${rec} वसूल किए।`,
+    },
+    cal: {
+      paid: "भुगतान हुआ",
+      pending: "लंबित",
+      sent: "अनुरोध भेजा",
+      more: (n: number) => `+${n} और`,
     },
     sub: {
       title: "मैंडेट और रिन्यूअल कैलेंडर",
