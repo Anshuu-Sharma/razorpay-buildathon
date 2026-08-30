@@ -40,12 +40,14 @@ from app.services.stopping_rules import screen_user_message
 
 Event = tuple[str, dict]
 
-# Deterministic per-class diagnosis (root cause, playbook, confidence).
+# Deterministic per-class diagnosis (root cause, canonical Playbook key, confidence).
+# The playbook is the enum key — not a prose phrase — so the frontend localizes it
+# through the same vocab dictionary it uses for seeded diagnoses.
 _DIAG: dict[int, tuple[str, str, float]] = {
-    1: ("ACQUIRER_SWITCH_TIMEOUT", "Reroute rail → 1-tap link", 0.94),
-    2: ("OTP_3DS_DROPPED", "UPI Autopay nudge", 0.88),
-    3: ("BALANCE_BEFORE_SALARY", "Salary-cycle sequencer + mandate refresh", 0.91),
-    4: ("BUYER_AP_CYCLE", "Promise-to-Pay tracker", 0.85),
+    1: ("ACQUIRER_SWITCH_TIMEOUT", "REROUTE_RAIL", 0.94),
+    2: ("OTP_3DS_DROPPED", "UPI_AUTOPAY_NUDGE", 0.88),
+    3: ("BALANCE_BEFORE_SALARY", "SALARY_CYCLE_SEQUENCER", 0.91),
+    4: ("BUYER_AP_CYCLE", "P2P_TRACKER", 0.85),
 }
 
 _LABEL = {1: "Failed Payment", 2: "Abandoned Checkout", 3: "Failed Subscription", 4: "Overdue Invoice"}
@@ -87,8 +89,13 @@ def run_recovery(
     transaction_id: str,
     *,
     pause: Callable[[float], None] = time.sleep,
-    drafter: Callable[[Session, str, str], str] = draft_message,
+    drafter: Callable[[Session, str, str], str] | None = None,
+    locale: str = "en",
 ) -> Iterator[Event]:
+    # Default drafter writes in the requested locale (Hindi → Devanagari message);
+    # tests inject their own offline drafter and keep the (db, tid, prompt) contract.
+    if drafter is None:
+        drafter = lambda d, t, p: draft_message(d, t, p, locale=locale)  # noqa: E731
     txn = db.query(TransactionState).filter_by(transaction_id=transaction_id).one_or_none()
     if txn is None:
         raise ValueError(f"Unknown transaction: {transaction_id!r}")

@@ -103,9 +103,10 @@ export const addNote = (id: string, note: string) =>
 export const resolveEscalation = (ticketId: number) =>
   postJson<{ status: string }>(`/escalations/${ticketId}/resolve`, {});
 
-/** SSE URL for the live "REX works this case" run (consumed via EventSource). */
-export const runUrl = (id: string) =>
-  `${V1}/transactions/${encodeURIComponent(id)}/run`;
+/** SSE URL for the live "REX works this case" run (consumed via EventSource).
+ * ``locale`` (en|hi) drives the language REX drafts its outreach in. */
+export const runUrl = (id: string, locale = "en") =>
+  `${V1}/transactions/${encodeURIComponent(id)}/run?locale=${locale}`;
 
 export const simulateCase = (failureClass?: number) =>
   postJson<TransactionRow>(

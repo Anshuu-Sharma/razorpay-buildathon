@@ -6,7 +6,7 @@ import { useApi } from "@/hooks/useApi";
 import { addNote, fetchTransaction, setStatus } from "@/lib/dashboard/api";
 import { humanize, inr, pct } from "@/lib/dashboard/format";
 import { describeAudit } from "@/lib/dashboard/activity";
-import { useDash, durTime } from "@/lib/dashboard/i18n";
+import { useDash, durTime, tVocab } from "@/lib/dashboard/i18n";
 import { useDashboardRefresh } from "@/lib/dashboard/refresh";
 import { useRexRun } from "@/lib/dashboard/rexrun";
 import { CLASS_COLOR, aiTagTone, statusTone } from "@/lib/dashboard/status";
@@ -195,14 +195,19 @@ function Body({ id, d, onClose }: { id: string; d: DashStrings; onClose: () => v
             </span>
           }
         />
-        <Field label={d.drawer.playbook} value={humanize(t.playbook)} />
-        <Field label={d.drawer.channel} value={t.channel ? humanize(t.channel) : "—"} />
+        <Field label={d.drawer.playbook} value={tVocab("playbook", t.playbook, d)} />
+        <Field label={d.drawer.channel} value={tVocab("channel", t.channel, d)} />
         <Field
           label={d.drawer.confidence}
           value={<span className="d-num">{t.confidence != null ? pct(t.confidence) : "—"}</span>}
         />
         <Field label={d.drawer.ttr} value={<span className="d-num">{durTime(t.time_to_recovery_seconds, d)}</span>} />
-        {t.stopping_rule ? <Field label={d.drawer.stoppingRule} value={humanize(t.stopping_rule)} /> : null}
+        {t.stopping_rule ? (
+          <Field
+            label={d.drawer.stoppingRule}
+            value={d.activity.rule[t.stopping_rule] ?? humanize(t.stopping_rule)}
+          />
+        ) : null}
         {t.error_code ? <Field label={d.drawer.errorCode} value={<span className="d-num">{t.error_code}</span>} /> : null}
       </div>
 
@@ -214,11 +219,11 @@ function Body({ id, d, onClose }: { id: string; d: DashStrings; onClose: () => v
           </p>
           <p className="mt-1.5 text-[13px]">
             <span style={{ color: "var(--d-muted)" }}>{d.drawer.rootCause}</span>{" "}
-            <span className="d-num font-medium">{t.diagnosis.root_cause}</span>
+            <span className="font-medium">{tVocab("rootCause", t.diagnosis.root_cause, d)}</span>
           </p>
           <p className="mt-1 text-[13px]">
             <span style={{ color: "var(--d-muted)" }}>{d.drawer.recommended}</span>{" "}
-            <span className="font-medium">{humanize(t.diagnosis.recommended_playbook)}</span>
+            <span className="font-medium">{tVocab("playbook", t.diagnosis.recommended_playbook, d)}</span>
             {t.diagnosis.confidence != null ? (
               <span className="d-num" style={{ color: "var(--d-faint)" }}>
                 {" "}

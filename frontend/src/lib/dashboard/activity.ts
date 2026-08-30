@@ -1,4 +1,5 @@
 import { humanize } from "./format";
+import { tVocab } from "./i18n";
 import type { DashStrings } from "./i18n";
 import type { AuditEntry } from "./types";
 
@@ -34,7 +35,7 @@ export function describeAudit(e: AuditEntry, d: DashStrings): Activity {
       return {
         icon: "🔍",
         label: a.diagnosed,
-        detail: `${str("root_cause")} · ${humanize(str("recommended_playbook"))}`,
+        detail: `${tVocab("rootCause", str("root_cause"), d)} · ${tVocab("playbook", str("recommended_playbook"), d)}`,
       };
     case "EXECUTE_INTERVENTION": {
       const action = str("action");
@@ -61,10 +62,11 @@ export function describeAudit(e: AuditEntry, d: DashStrings): Activity {
     case "OPERATOR":
       if (str("event") === "OPERATOR_NOTE")
         return { icon: "📝", label: a.opNote, detail: str("note"), tone: "muted" };
+      const stat = (k: string) => d.status[str(k) as keyof typeof d.status] ?? humanize(str(k));
       return {
         icon: "👤",
         label: a.opStatus,
-        detail: `${humanize(str("from"))} → ${humanize(str("to"))}${p.note ? ` · ${str("note")}` : ""}`,
+        detail: `${stat("from")} → ${stat("to")}${p.note ? ` · ${str("note")}` : ""}`,
         tone: "info",
       };
     default:

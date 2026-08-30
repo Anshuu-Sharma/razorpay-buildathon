@@ -2,6 +2,7 @@
 
 import { useLocale } from "@/lib/i18n/LocaleProvider";
 import type { Locale } from "@/lib/i18n/dictionary";
+import { humanize } from "./format";
 
 /**
  * Dashboard-scoped EN/HI strings. Kept separate from the marketing dictionary so
@@ -340,6 +341,42 @@ const DASH = {
     },
     // Overrides the backend's English rule descriptions when present.
     ruleDesc: {} as Record<string, string>,
+    // Closed-set enum values that surface in the UI (diagnoses, playbooks,
+    // channels). Translating them here keeps the whole surface in-language;
+    // unknown keys fall back to humanize() via tVocab().
+    vocab: {
+      rootCause: {
+        ACQUIRER_SWITCH_TIMEOUT: "Acquirer switch timeout",
+        OTP_3DS_DROPPED: "OTP / 3DS dropped",
+        AUTH_3DS_DROPPED: "OTP / 3DS dropped",
+        BALANCE_BEFORE_SALARY: "Low balance before salary",
+        BUYER_AP_CYCLE: "Buyer's AP cycle delay",
+        INSUFFICIENT_FUNDS: "Insufficient funds",
+        ISSUER_DOWN: "Issuer bank down",
+        MANDATE_REJECTED: "Mandate rejected",
+        SESSION_EXPIRED: "Session expired",
+        TOKEN_EXPIRED: "Mandate token expired",
+        HARD_DECLINE: "Hard decline",
+        NETWORK_FAILURE: "Network failure",
+        CUSTOMER_DROPPED_OFF: "Customer dropped off",
+        UNDIAGNOSED: "Undiagnosed",
+        WAITING_FOR_P2P: "Awaiting promise-to-pay",
+      } as Record<string, string>,
+      playbook: {
+        REROUTE_RAIL: "Reroute rail",
+        PREAUTH_LINK: "Pre-auth link",
+        UPI_AUTOPAY_NUDGE: "UPI Autopay nudge",
+        NEGOTIATION: "Negotiation",
+        SALARY_CYCLE_SEQUENCER: "Salary-cycle sequencer",
+        MANDATE_REFRESH: "Mandate refresh",
+        P2P_TRACKER: "Promise-to-pay tracker",
+      } as Record<string, string>,
+      channel: {
+        WHATSAPP: "WhatsApp",
+        VOICE: "Voice call",
+        PAYMENT_LINK: "Payment link",
+      } as Record<string, string>,
+    },
   },
 
   hi: {
@@ -680,6 +717,39 @@ const DASH = {
       TRAI_QUIET_HOURS: "20:00–09:00 IST के बीच कोई आउटबाउंड वॉइस/संदेश नहीं (TRAI); संपर्क स्थगित किया जाता है।",
       VOICE_ATTEMPT_CAP: "प्रत्येक 72-घंटे की अवधि में अधिकतम 2 वॉइस प्रयास।",
     } as Record<string, string>,
+    vocab: {
+      rootCause: {
+        ACQUIRER_SWITCH_TIMEOUT: "एक्वायरर स्विच टाइमआउट",
+        OTP_3DS_DROPPED: "OTP / 3DS छूटा",
+        AUTH_3DS_DROPPED: "OTP / 3DS छूटा",
+        BALANCE_BEFORE_SALARY: "सैलरी से पहले कम बैलेंस",
+        BUYER_AP_CYCLE: "खरीदार का AP चक्र विलंब",
+        INSUFFICIENT_FUNDS: "अपर्याप्त बैलेंस",
+        ISSUER_DOWN: "जारीकर्ता बैंक डाउन",
+        MANDATE_REJECTED: "मैंडेट अस्वीकृत",
+        SESSION_EXPIRED: "सत्र समाप्त",
+        TOKEN_EXPIRED: "मैंडेट टोकन समाप्त",
+        HARD_DECLINE: "हार्ड डिक्लाइन",
+        NETWORK_FAILURE: "नेटवर्क विफलता",
+        CUSTOMER_DROPPED_OFF: "ग्राहक छोड़ गया",
+        UNDIAGNOSED: "अनिदान",
+        WAITING_FOR_P2P: "प्रॉमिस-टू-पे की प्रतीक्षा",
+      } as Record<string, string>,
+      playbook: {
+        REROUTE_RAIL: "रेल री-रूट",
+        PREAUTH_LINK: "प्री-ऑथ लिंक",
+        UPI_AUTOPAY_NUDGE: "UPI ऑटोपे नज",
+        NEGOTIATION: "मोलभाव",
+        SALARY_CYCLE_SEQUENCER: "सैलरी-साइकल सीक्वेंसर",
+        MANDATE_REFRESH: "मैंडेट रिफ्रेश",
+        P2P_TRACKER: "प्रॉमिस-टू-पे ट्रैकर",
+      } as Record<string, string>,
+      channel: {
+        WHATSAPP: "WhatsApp",
+        VOICE: "वॉइस कॉल",
+        PAYMENT_LINK: "भुगतान लिंक",
+      } as Record<string, string>,
+    },
   },
 };
 
@@ -693,6 +763,17 @@ void _localeParity;
 export function useDash(): { d: DashStrings; locale: Locale } {
   const { locale } = useLocale();
   return { d: DASH[locale] as DashStrings, locale };
+}
+
+// Localizes a closed-set enum value (diagnosis root cause, playbook, channel),
+// falling back to a humanized form for anything not yet in the dictionary.
+export function tVocab(
+  kind: "rootCause" | "playbook" | "channel",
+  key: string | null | undefined,
+  d: DashStrings,
+): string {
+  if (!key) return "—";
+  return d.vocab[kind][key] ?? humanize(key);
 }
 
 // Locale-aware time helpers (kept here so components read words from one place).

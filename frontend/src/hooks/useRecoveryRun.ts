@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { runUrl } from "@/lib/dashboard/api";
+import { useLocale } from "@/lib/i18n/LocaleProvider";
 
 export type RunPhase =
   | "idle"
@@ -30,6 +31,8 @@ export interface FeedItem {
     | "complete";
   text?: string; // message body / detail
   extra?: string; // rule name, p2p date, final status, playbook
+  fc?: number; // failure class (flagged item → localized class label)
+  amount?: number; // amount in INR (flagged item)
 }
 
 interface RunState {
@@ -56,9 +59,11 @@ const INITIAL: RunState = {
  * synchronously inside an effect (keeps clear of the strict hooks lint rule).
  */
 export function useRecoveryRun(onComplete?: () => void) {
+  const { locale } = useLocale();
   const [state, setState] = useState<RunState>(INITIAL);
   const esRef = useRef<EventSource | null>(null);
   const fid = useRef(0);
+  const meta = useRef<{ fc: number | null; amount: number }>({ fc: null, amount: 0 });
   const onDone = useRef(onComplete);
   onDone.current = onComplete;
 
@@ -75,16 +80,29 @@ export function useRecoveryRun(onComplete?: () => void) {
     (txnId: string, name: string) => {
       close();
       fid.current = 0;
+      meta.current = { fc: null, amount: 0 };
       setState({ ...INITIAL, activeId: txnId, name, running: true, phase: "flagged" });
-      const es = new EventSource(runUrl(txnId));
+      const es = new EventSource(runUrl(txnId, locale));
       esRef.current = es;
       const on = (n: string, fn: (d: Record<string, unknown>) => void) =>
         es.addEventListener(n, (e) => fn(JSON.parse((e as MessageEvent).data)));
 
+      on("start", (d) => {
+        meta.current = {
+          fc: (d.failure_class as number) ?? null,
+          amount: (d.amount_inr as number) ?? 0,
+        };
+      });
       on("step", (d) => {
         const p = d.phase as RunPhase;
         setState((s) => ({ ...s, phase: p }));
-        if (p === "flagged") push({ kind: "flagged", text: d.label as string });
+        if (p === "flagged")
+          push({
+            kind: "flagged",
+            text: d.label as string,
+            fc: meta.current.fc ?? undefined,
+            amount: meta.current.amount,
+          });
         else if (p === "waiting") push({ kind: "waiting", extra: d.p2p_date as string });
         else if (p === "stopped") push({ kind: "stopped", extra: d.rule as string });
         else if (p === "escalated") push({ kind: "escalated", extra: d.rule as string });
@@ -117,7 +135,7 @@ export function useRecoveryRun(onComplete?: () => void) {
         close();
       };
     },
-    [close, push]
+    [close, push, locale]
   );
 
   const reset = useCallback(() => {

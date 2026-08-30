@@ -43,10 +43,15 @@ def _context(db: Session, txn: TransactionState) -> tuple[str, str]:
     return name, problem, summary  # type: ignore[return-value]
 
 
-def _fallback(txn: TransactionState, prompt: str) -> str:
+def _fallback(txn: TransactionState, prompt: str, locale: str = "en") -> str:
     name = str((txn.metadata_json or {}).get("customer_name", "there")).split()[0]
     amount = f"₹{int(txn.amount_minor / 100):,}"
     link = f"rzp.io/i/{txn.transaction_id[-6:]}"
+    if locale == "hi":
+        return (
+            f"नमस्ते {name}, आपके {amount} के लंबित भुगतान के बारे में याद दिला रहे हैं। "
+            f"आप इसे यहाँ सुरक्षित रूप से पूरा कर सकते हैं: {link}। धन्यवाद!"
+        )
     return (
         f"Hi {name}, following up regarding your pending {amount} payment. "
         f"You can complete it securely here: {link}. Thank you!"
@@ -59,6 +64,7 @@ def draft_message(
     prompt: str,
     *,
     generate: GenerateFn | None = None,
+    locale: str = "en",
 ) -> str:
     txn = (
         db.query(TransactionState)
@@ -78,6 +84,8 @@ def draft_message(
         "Write ONE short, warm, professional WhatsApp message (max 2 sentences). "
         "No preamble, no quotes — just the message text."
     )
+    if locale == "hi":
+        full_prompt += "\nWrite the message in Hindi (Devanagari script)."
 
     gen = generate or _default_generate()
     if gen is not None:
@@ -88,7 +96,7 @@ def draft_message(
         except Exception as exc:  # any SDK/network/model error → template
             logger.warning("Draft generation failed (%s); using template.", exc)
 
-    return _fallback(txn, prompt)
+    return _fallback(txn, prompt, locale)
 
 
 def _default_generate() -> GenerateFn | None:

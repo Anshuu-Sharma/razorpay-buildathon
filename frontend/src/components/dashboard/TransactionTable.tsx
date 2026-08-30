@@ -1,8 +1,8 @@
 "use client";
 
 import type { TransactionRow, LifecycleStatus } from "@/lib/dashboard/types";
-import { humanize, inr } from "@/lib/dashboard/format";
-import { useDash, relTime, durTime } from "@/lib/dashboard/i18n";
+import { inr } from "@/lib/dashboard/format";
+import { useDash, relTime, durTime, tVocab } from "@/lib/dashboard/i18n";
 import { CLASS_COLOR, aiTagTone, statusTone } from "@/lib/dashboard/status";
 import type { DashStrings } from "@/lib/dashboard/i18n";
 
@@ -129,10 +129,10 @@ export default function TransactionTable({
                   <StatusBadge status={r.status} d={d} />
                 </td>
                 <td className={`${TD} text-[12px]`} style={{ color: "var(--d-muted)" }}>
-                  {humanize(r.playbook)}
+                  {tVocab("playbook", r.playbook, d)}
                 </td>
                 <td className={`${TD} text-[12px]`} style={{ color: "var(--d-muted)" }}>
-                  {r.channel ? humanize(r.channel) : "—"}
+                  {tVocab("channel", r.channel, d)}
                 </td>
                 <td className={`${TD} d-num text-right text-[12px]`} style={{ color: "var(--d-muted)" }}>
                   {durTime(r.time_to_recovery_seconds, d)}

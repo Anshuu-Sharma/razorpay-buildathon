@@ -356,13 +356,15 @@ def simulate(failure_class: int | None = Query(None, ge=1, le=4), db: Session = 
 
 
 @router.get("/transactions/{transaction_id}/run")
-def run_live(transaction_id: str, db: Session = Depends(get_db)):
+def run_live(transaction_id: str, locale: str = "en", db: Session = Depends(get_db)):
     """Stream REX working this case live (SSE) — diagnose → message → reply →
-    (call) → reconcile — so the viewer watches the agent recover it."""
+    (call) → reconcile — so the viewer watches the agent recover it. ``locale``
+    (en|hi) drives the language REX drafts its outreach in."""
     _require_txn(db, transaction_id)
+    loc = "hi" if locale == "hi" else "en"
 
     def event_stream():
-        for event, data in run_recovery(db, transaction_id):
+        for event, data in run_recovery(db, transaction_id, locale=loc):
             yield _sse(event, data)
 
     return StreamingResponse(event_stream(), media_type="text/event-stream", headers=_SSE_HEADERS)

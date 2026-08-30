@@ -49,6 +49,24 @@ def test_run_streams_the_agent_loop_and_recovers(db_session):
     assert "metrics" in final
 
 
+def test_diagnosis_event_uses_playbook_enum_key(db_session):
+    # The run feed must emit the canonical Playbook key (not a prose phrase) so the
+    # frontend can localize it the same way it localizes seeded diagnoses.
+    _flagged(db_session, fc=1)
+    events = _events(db_session, "run_1")
+    diag = next(payload for name, payload in events if name == "diagnosis")
+    assert diag["playbook"] == "REROUTE_RAIL"
+    # …and the audit trail records the same canonical value.
+    from app.models import AuditTrail
+
+    row = (
+        db_session.query(AuditTrail)
+        .filter_by(transaction_id="run_1", node_name="DIAGNOSE")
+        .one()
+    )
+    assert row.payload["recommended_playbook"] == "REROUTE_RAIL"
+
+
 def test_run_persists_the_conversation(db_session):
     _flagged(db_session)
     _events(db_session, "run_1")

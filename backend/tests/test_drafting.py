@@ -57,6 +57,29 @@ def test_draft_falls_back_to_template_on_failure(db_session):
     assert "Kabir" in out  # personalised fallback
 
 
+def _has_devanagari(s: str) -> bool:
+    return any("ऀ" <= ch <= "ॿ" for ch in s)
+
+
+def test_draft_hindi_locale_instructs_the_model_in_hindi(db_session):
+    _txn(db_session, name="Diya Kapoor")
+    captured = {}
+    def fake(prompt: str) -> str:
+        captured["p"] = prompt
+        return "theek hai"
+    draft_message(db_session, "draft_1", "ask for a payment date", generate=fake, locale="hi")
+    assert "Hindi" in captured["p"] or _has_devanagari(captured["p"])
+
+
+def test_draft_hindi_fallback_is_devanagari(db_session):
+    _txn(db_session, name="Kabir Singh")
+    def boom(_p: str) -> str:
+        raise RuntimeError("model unavailable")
+    out = draft_message(db_session, "draft_1", "remind to pay", generate=boom, locale="hi")
+    assert out.strip()
+    assert _has_devanagari(out)  # Hindi template, not the English one
+
+
 def test_draft_unknown_transaction_raises(db_session):
     with pytest.raises(ValueError):
         draft_message(db_session, "nope", "hi", generate=lambda _p: "x")

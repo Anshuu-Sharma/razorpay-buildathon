@@ -2,7 +2,8 @@
 
 import { useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { useDash } from "@/lib/dashboard/i18n";
+import { useDash, tVocab } from "@/lib/dashboard/i18n";
+import { inr } from "@/lib/dashboard/format";
 import type { FeedItem, RunPhase } from "@/hooks/useRecoveryRun";
 
 const ICON: Record<FeedItem["kind"], string> = {
@@ -48,9 +49,17 @@ export default function RexRunOverlay({ run }: { run: Run }) {
   const line = (it: FeedItem): { label: string; text?: string } => {
     switch (it.kind) {
       case "flagged":
-        return { label: it.text ?? d.run.ph.flagged };
+        return {
+          label:
+            it.fc != null
+              ? `${d.run.ph.flagged}: ${d.classLabel[it.fc]} · ${inr(it.amount ?? 0)}`
+              : it.text ?? d.run.ph.flagged,
+        };
       case "diagnosis":
-        return { label: d.run.fDiagnosed, text: `${it.text} · ${it.extra}` };
+        return {
+          label: d.run.fDiagnosed,
+          text: `${tVocab("rootCause", it.text, d)} · ${tVocab("playbook", it.extra, d)}`,
+        };
       case "sent":
         return { label: d.run.fSent, text: it.text };
       case "reply":
