@@ -95,13 +95,36 @@ def resolve_transaction(db: Session, ref: str | None, context: dict) -> str | No
         if t.transaction_id.lower() == r:
             return t.transaction_id
 
-    matches = [
-        t for t in txns
-        if r in str((t.metadata_json or {}).get("customer_name", "")).lower()
-    ]
-    if len(matches) == 1:
-        return matches[0].transaction_id
-    return None  # no match, or ambiguous
+    def _name(t) -> str:
+        return str((t.metadata_json or {}).get("customer_name", "")).lower()
+
+    # An exact full-name match is the same customer (the seeder repeats names
+    # across paired rows), so pick one — preferring a row REX can still work —
+    # rather than refusing. A merely partial match that hits several *different*
+    # customers stays ambiguous.
+    exact = [t for t in txns if _name(t) == r]
+    if exact:
+        return _prefer_runnable(exact)
+
+    partial = [t for t in txns if r in _name(t)]
+    if len(partial) == 1:
+        return partial[0].transaction_id
+    return None  # no match, or an ambiguous partial across different customers
+
+
+_RUNNABLE_STATES = {
+    TransactionLifecycleState.PENDING,
+    TransactionLifecycleState.DIAGNOSING,
+    TransactionLifecycleState.INTERVENING,
+    TransactionLifecycleState.WAITING,
+}
+
+
+def _prefer_runnable(rows: list[TransactionState]) -> str:
+    for t in rows:
+        if t.current_state in _RUNNABLE_STATES:
+            return t.transaction_id
+    return rows[0].transaction_id
 
 
 # --- grounding --------------------------------------------------------------

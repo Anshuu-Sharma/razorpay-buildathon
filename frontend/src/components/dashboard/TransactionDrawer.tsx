@@ -289,6 +289,7 @@ export default function TransactionDrawer({
   onClose: () => void;
 }) {
   const { d } = useDash();
+  const { setFocused } = useRexRun();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -296,6 +297,12 @@ export default function TransactionDrawer({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
+
+  // Publish the open transaction so REX resolves "this one" / "the current one".
+  useEffect(() => {
+    setFocused(id);
+    return () => setFocused(null);
+  }, [id, setFocused]);
 
   return (
     <AnimatePresence>

@@ -341,6 +341,26 @@ const DASH = {
     },
     // Overrides the backend's English rule descriptions when present.
     ruleDesc: {} as Record<string, string>,
+    assistant: {
+      launcher: "Ask REX",
+      title: "REX",
+      subtitle: "Revenue Execution Engine",
+      placeholder: "Ask REX, or give a command…",
+      greeting:
+        "Hi — I'm REX. Ask how recovery's going (\"what's our recovery rate?\"), or put me to work (\"recover the Acme invoice\").",
+      thinking: "REX is thinking…",
+      working: "REX is working this case",
+      you: "You",
+      confirmBody: (s: string) => `Set this transaction to ${s}?`,
+      confirm: "Confirm",
+      cancel: "Cancel",
+      didStatus: (s: string) => `Done — status set to ${s}.`,
+      didNote: "Note added to the case.",
+      declined: "Okay, left it as is.",
+      navigating: "Opening that view…",
+      error: "Something went wrong — please try again.",
+      clear: "Clear chat",
+    },
     // Closed-set enum values that surface in the UI (diagnoses, playbooks,
     // channels). Translating them here keeps the whole surface in-language;
     // unknown keys fall back to humanize() via tVocab().
@@ -717,6 +737,26 @@ const DASH = {
       TRAI_QUIET_HOURS: "20:00–09:00 IST के बीच कोई आउटबाउंड वॉइस/संदेश नहीं (TRAI); संपर्क स्थगित किया जाता है।",
       VOICE_ATTEMPT_CAP: "प्रत्येक 72-घंटे की अवधि में अधिकतम 2 वॉइस प्रयास।",
     } as Record<string, string>,
+    assistant: {
+      launcher: "REX से पूछें",
+      title: "REX",
+      subtitle: "रेवेन्यू एग्ज़ीक्यूशन इंजन",
+      placeholder: "REX से पूछें, या कमांड दें…",
+      greeting:
+        "नमस्ते — मैं REX हूँ। पूछिए वसूली कैसी चल रही है (\"हमारी रिकवरी दर क्या है?\"), या काम सौंपिए (\"Acme का इनवॉइस वसूल करो\")।",
+      thinking: "REX सोच रहा है…",
+      working: "REX इस केस पर काम कर रहा है",
+      you: "आप",
+      confirmBody: (s: string) => `इस ट्रांज़ैक्शन को ${s} पर सेट करें?`,
+      confirm: "पुष्टि करें",
+      cancel: "रद्द करें",
+      didStatus: (s: string) => `हो गया — स्थिति ${s} पर सेट।`,
+      didNote: "केस में नोट जोड़ा गया।",
+      declined: "ठीक है, वैसे ही छोड़ दिया।",
+      navigating: "वह व्यू खोल रहा हूँ…",
+      error: "कुछ गड़बड़ हुई — कृपया फिर प्रयास करें।",
+      clear: "चैट साफ़ करें",
+    },
     vocab: {
       rootCause: {
         ACQUIRER_SWITCH_TIMEOUT: "एक्वायरर स्विच टाइमआउट",

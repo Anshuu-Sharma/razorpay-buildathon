@@ -50,10 +50,19 @@ def test_resolve_this_uses_focused_context(db_session):
     assert resolve_transaction(db_session, "this one", {"focused_transaction_id": "t1"}) == "t1"
 
 
-def test_resolve_ambiguous_returns_none(db_session):
+def test_resolve_ambiguous_partial_returns_none(db_session):
+    # Different customers that merely share a word → refuse, don't guess.
     _txn(db_session, "t1", "Acme Mumbai")
     _txn(db_session, "t2", "Acme Delhi")
     assert resolve_transaction(db_session, "acme", {}) is None
+
+
+def test_resolve_exact_name_duplicate_prefers_runnable(db_session):
+    # The seeder repeats a customer across paired rows; an exact-name match is the
+    # same person, so pick the one REX can still work rather than refusing.
+    _txn(db_session, "t1", "Myra Reddy", state=TransactionLifecycleState.RECOVERED)
+    _txn(db_session, "t2", "Myra Reddy", state=TransactionLifecycleState.PENDING)
+    assert resolve_transaction(db_session, "Myra Reddy", {}) == "t2"
 
 
 # --- intents ----------------------------------------------------------------

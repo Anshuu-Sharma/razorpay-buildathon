@@ -103,6 +103,34 @@ export const addNote = (id: string, note: string) =>
 export const resolveEscalation = (ticketId: number) =>
   postJson<{ status: string }>(`/escalations/${ticketId}/resolve`, {});
 
+export type AssistantActionType = "run_recovery" | "set_status" | "add_note" | "navigate";
+
+export interface AssistantAction {
+  type: AssistantActionType;
+  transaction_id: string | null;
+  status: string | null;
+  note: string | null;
+  route: string | null;
+  requires_confirmation: boolean;
+}
+
+export interface AssistantReply {
+  reply: string;
+  action: AssistantAction | null;
+}
+
+export interface AssistantContext {
+  route?: string | null;
+  focused_transaction_id?: string | null;
+  class_filter?: number | null;
+}
+
+export const sendAssistantChat = (
+  message: string,
+  locale: string,
+  context: AssistantContext = {},
+) => postJson<AssistantReply>("/assistant/chat", { message, locale, context });
+
 /** SSE URL for the live "REX works this case" run (consumed via EventSource).
  * ``locale`` (en|hi) drives the language REX drafts its outreach in. */
 export const runUrl = (id: string, locale = "en") =>
