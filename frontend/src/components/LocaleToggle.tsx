@@ -29,7 +29,7 @@ export default function LocaleToggle() {
             {active && (
               <motion.span
                 layoutId="locale-pill"
-                className="absolute inset-0 -z-10 rounded-full bg-blue shadow-[0_0_16px_var(--rzp-blue-glow)]"
+                className="absolute inset-0 -z-10 rounded-full bg-[rgba(128,128,128,0.42)]"
                 transition={{ type: "spring", stiffness: 380, damping: 30 }}
               />
             )}
