@@ -8,16 +8,13 @@
 
 **[The Problem](#-the-problem)** · **[The Solution](#-the-solution)** · **[Four Shapes](#-the-problem-in-four-shapes)** · **[The Bouncer](#-recovery-you-can-trust)** · **[The Money Moment](#-the-money-moment)** · **[Architecture](#%EF%B8%8F-architecture)** · **[Run It](#-running-it-locally)**
 
+<br/>
+
+<img src="docs/images/dashboard.png" alt="REX Mission Control — GRRR banner, recovery funnel, and the conversational REX assistant" width="90%" />
+
 </div>
 
 <br/>
-
-> Not every failed payment is lost revenue. REX exists to recover the ones that are not,
-> and to *prove*, case by case, that it did so compliantly. When a payment fails, REX
-> figures out **why**, decides what to do, and works the customer back to a successful
-> payment over WhatsApp and voice, all inside the guardrails a payments company has to
-> respect. Every decision lands in an immutable audit trail, and a human can watch REX
-> work, talk to it, and take over at any point.
 
 ---
 
@@ -31,6 +28,11 @@ is or is not allowed under RBI and TRAI rules.
 
 Most of that revenue already *wanted* to happen. It just needs something to close the loop,
 quickly and correctly.
+
+<div align="center">
+<img src="docs/images/intro.png" alt="The landing scene — four failure classes orbiting the Revenue Execution Engine" width="90%" />
+<br/><sub><i>The landing scene: the four failure classes orbit the engine, each a different shape of lost revenue.</i></sub>
+</div>
 
 ## ✨ The solution
 
@@ -114,6 +116,11 @@ a **live Hinglish voice call**. Fully bilingual, down to the diagnoses and playb
 </tr>
 </table>
 
+<div align="center">
+<img src="docs/images/calender.png" alt="The Mandate & Renewal Calendar — upcoming auto-debits REX defers to the salary window" width="92%" />
+<br/><sub><i>The <b>Mandate &amp; Renewal Calendar</b> (Failed Subscriptions): upcoming auto-debits as status-coloured pills, where REX defers predicted failures to the salary window within the RBI retry cap.</i></sub>
+</div>
+
 ---
 
 ## 🛡️ Recovery you can trust
@@ -135,6 +142,11 @@ real-world action, and **the model cannot argue its way past it**.
 The policy is **operator-editable** from the dashboard, and **REX itself has no write path
 to it**. REX does the thinking; the Bouncer holds the line. Everything that clears the
 Bouncer, or is stopped by it, is appended to an immutable audit log.
+
+<div align="center">
+<img src="docs/images/rules.png" alt="The Stopping Rules — deterministic compliance guards enforced outside the LLM" width="92%" />
+<br/><sub><i>The Bouncer's stopping rules — RBI retry caps, TRAI quiet hours, dispute freezes, opt-outs — enforced <b>outside</b> the model.</i></sub>
+</div>
 
 ---
 
@@ -164,6 +176,13 @@ sequenceDiagram
 
 > Inbound webhooks cannot reach a local machine, so the paid state is reconciled by
 > **polling** the link status. The loop closes reliably in a local demo, no tunneling.
+
+<div align="center">
+<img src="docs/images/voice.png" alt="A live Hinglish voice call with REX" width="45%" />
+&nbsp;&nbsp;
+<img src="docs/images/whatsapp.png" alt="The clickable Razorpay Pay-now card and 'payment received — recovery complete' in the WhatsApp thread" width="45%" />
+<br/><sub><i>Left: a live Hinglish voice call with REX. Right: the real, clickable Razorpay "Pay now" card, then <b>"Payment received — recovery complete."</b></i></sub>
+</div>
 
 ---
 
@@ -254,23 +273,6 @@ To see the whole arc, send a payment link from a transaction, pay the test link 
 </details>
 
 ---
-
-## 📡 Selected API surface
-
-| Method | Path | Purpose |
-|:------:|------|---------|
-| `POST` | `/api/v1/webhooks/razorpay` | HMAC-verified failure webhook; kicks off the recovery graph |
-| `GET`  | `/api/v1/metrics` | GRRR, funnel, per-class breakdown, stopping-rule counts |
-| `GET`  | `/api/v1/transactions` | Explorer feed with AI tags and derived playbook + channel |
-| `POST` | `/api/v1/transactions/{id}/payment-link` | Create a real test-mode Razorpay link, post it to WhatsApp |
-| `GET`  | `/api/v1/transactions/{id}/payment-link/status` | Poll Razorpay; close the case to RECOVERED when paid |
-| `GET`  | `/api/v1/transactions/{id}/run` | SSE stream of REX working a case live |
-| `POST` | `/api/v1/transactions/{id}/status` | Operator override (audited) |
-| `POST` | `/api/v1/assistant/chat` | Natural-language layer: a reply plus a structured action |
-| `GET`  | `/api/v1/policy` | The Bouncer's rules and the stopping-rule catalogue |
-
----
-
 <div align="center">
 
 ## 🏆 Why this wins
