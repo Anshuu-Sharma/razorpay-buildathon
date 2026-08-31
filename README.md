@@ -167,24 +167,6 @@ sequenceDiagram
 
 ---
 
-## 🔬 What is real, and what is staged
-
-Honesty beats a flashy demo, so this is explicit.
-
-| ✅ Real | 🎭 Staged for the demo |
-|---------|------------------------|
-| Failure classification, diagnosis, and **every stopping rule** | The *customer's* text replies in a scripted run |
-| Hinglish promise-to-pay extraction, reconciliation, GRRR maths | Mandate re-charge & cancellation (test keys carry no live recurring token) |
-| The entire append-only audit trail | |
-| REX's outreach messages, **drafted live** by the model | |
-| The **live Hinglish voice call** (ElevenLabs Conversational AI) | |
-| **Razorpay payment-link creation** + **webhook HMAC-SHA256 verification** | |
-
-Everything a judge sees REX *decide* is real code. What is scripted is only the other side
-of the conversation.
-
----
-
 ## 🏗️ Architecture
 
 ```mermaid
