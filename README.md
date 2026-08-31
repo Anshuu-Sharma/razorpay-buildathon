@@ -10,7 +10,7 @@
 
 <br/>
 
-<img src="assets/screenshots/dashboard.png" alt="REX Mission Control — GRRR banner, recovery funnel, and the conversational REX assistant" width="90%" />
+<img src="assets/screenshots/intro.png" alt="The landing scene — four failure classes orbiting the Revenue Execution Engine" width="90%" />
 
 </div>
 
@@ -30,7 +30,8 @@ Most of that revenue already *wanted* to happen. It just needs something to clos
 quickly and correctly.
 
 <div align="center">
-<img src="assets/screenshots/intro.png" alt="The landing scene — four failure classes orbiting the Revenue Execution Engine" width="90%" />
+
+<img src="assets/screenshots/dashboard.png" alt="REX Mission Control — GRRR banner, recovery funnel, and the conversational REX assistant" width="90%" />
 <br/><sub><i>The landing scene: the four failure classes orbit the engine, each a different shape of lost revenue.</i></sub>
 </div>
 
