@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useApi } from "@/hooks/useApi";
-import { draftMessage, fetchConversation, sendMessage } from "@/lib/dashboard/api";
+import { createPaymentLink, draftMessage, fetchConversation, sendMessage } from "@/lib/dashboard/api";
 import { useDash } from "@/lib/dashboard/i18n";
 import PhoneFrame from "./PhoneFrame";
 import WhatsAppThread from "./WhatsAppThread";
@@ -32,6 +32,7 @@ export default function ConversationPanel({
   const [prompt, setPrompt] = useState("");
   const [sending, setSending] = useState(false);
   const [drafting, setDrafting] = useState(false);
+  const [linking, setLinking] = useState(false);
 
   const load = useCallback(
     (signal: AbortSignal) => fetchConversation(txnId, signal),
@@ -49,6 +50,17 @@ export default function ConversationPanel({
       setNonce((n) => n + 1);
     } finally {
       setSending(false);
+    }
+  };
+
+  const onPaymentLink = async () => {
+    if (linking) return;
+    setLinking(true);
+    try {
+      await createPaymentLink(txnId);
+      setNonce((n) => n + 1); // the link appears as a clickable message in the thread
+    } finally {
+      setLinking(false);
     }
   };
 
@@ -184,6 +196,16 @@ export default function ConversationPanel({
               <p className="mt-1.5 text-[10.5px]" style={{ color: "var(--d-faint)" }}>
                 {c.hint}
               </p>
+
+              {/* Real (test-mode) Razorpay payment link, dropped into the thread */}
+              <button
+                onClick={onPaymentLink}
+                disabled={linking}
+                className="mt-2 w-full rounded-lg py-2 text-[12px] font-semibold disabled:opacity-50"
+                style={{ background: "#25d366", color: "#0b141a" }}
+              >
+                {linking ? c.payLinkSending : c.payLink}
+              </button>
             </div>
           ) : null}
         </div>

@@ -184,6 +184,12 @@ export const draftMessage = (id: string, prompt: string) =>
     prompt,
   });
 
+export const createPaymentLink = (id: string) =>
+  postJson<{ url: string; razorpay_id: string; simulated: boolean; message: ConversationMessage }>(
+    `/transactions/${encodeURIComponent(id)}/payment-link`,
+    {}
+  );
+
 export const startCall = (id: string) =>
   postJson<CallData>(`/transactions/${encodeURIComponent(id)}/call/start`, {});
 

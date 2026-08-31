@@ -334,6 +334,24 @@ def send_message(
     return _serialize_message(msg)
 
 
+@router.post("/transactions/{transaction_id}/payment-link", status_code=status.HTTP_201_CREATED)
+def create_payment_link_route(transaction_id: str, db: Session = Depends(get_db)) -> dict:
+    """Mint a real (test-mode) Razorpay payment link and post it to the WhatsApp
+    thread as a clickable message."""
+    from app.services.payment_links import create_payment_link
+
+    try:
+        result = create_payment_link(db, transaction_id)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
+    return {
+        "url": result["url"],
+        "razorpay_id": result["razorpay_id"],
+        "simulated": result["simulated"],
+        "message": _serialize_message(result["message"]),
+    }
+
+
 class DraftBody(BaseModel):
     prompt: str = Field(min_length=1, max_length=500)
 

@@ -19,13 +19,22 @@ function Ticks({ status }: { status: string }) {
 
 function LinkCard({ url }: { url: string }) {
   return (
-    <div
-      className="mt-1 rounded-md px-2 py-1.5"
-      style={{ background: "rgba(0,0,0,0.05)", borderLeft: "3px solid #25d366" }}
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="mt-1 block rounded-md px-2 py-1.5 transition-colors hover:brightness-95"
+      style={{ background: "rgba(0,0,0,0.05)", borderLeft: "3px solid #25d366", textDecoration: "none" }}
     >
       <div style={{ fontSize: 10.5, fontWeight: 600, color: "#075e54" }}>Secure payment link</div>
       <div style={{ fontSize: 10, color: "#3b6ef0", wordBreak: "break-all" }}>{url}</div>
-    </div>
+      <div
+        className="mt-1 rounded px-2 py-1 text-center"
+        style={{ background: "#25d366", color: "#0b141a", fontSize: 10.5, fontWeight: 700 }}
+      >
+        Pay now →
+      </div>
+    </a>
   );
 }
 
