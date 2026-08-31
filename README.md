@@ -10,7 +10,7 @@
 
 <br/>
 
-<img src="docs/images/dashboard.png" alt="REX Mission Control — GRRR banner, recovery funnel, and the conversational REX assistant" width="90%" />
+<img src="assets/screenshots/dashboard.png" alt="REX Mission Control — GRRR banner, recovery funnel, and the conversational REX assistant" width="90%" />
 
 </div>
 
@@ -30,7 +30,7 @@ Most of that revenue already *wanted* to happen. It just needs something to clos
 quickly and correctly.
 
 <div align="center">
-<img src="docs/images/intro.png" alt="The landing scene — four failure classes orbiting the Revenue Execution Engine" width="90%" />
+<img src="assets/screenshots/intro.png" alt="The landing scene — four failure classes orbiting the Revenue Execution Engine" width="90%" />
 <br/><sub><i>The landing scene: the four failure classes orbit the engine, each a different shape of lost revenue.</i></sub>
 </div>
 
@@ -117,7 +117,7 @@ a **live Hinglish voice call**. Fully bilingual, down to the diagnoses and playb
 </table>
 
 <div align="center">
-<img src="docs/images/calender.png" alt="The Mandate & Renewal Calendar — upcoming auto-debits REX defers to the salary window" width="92%" />
+<img src="assets/screenshots/calender.png" alt="The Mandate & Renewal Calendar — upcoming auto-debits REX defers to the salary window" width="92%" />
 <br/><sub><i>The <b>Mandate &amp; Renewal Calendar</b> (Failed Subscriptions): upcoming auto-debits as status-coloured pills, where REX defers predicted failures to the salary window within the RBI retry cap.</i></sub>
 </div>
 
@@ -144,7 +144,7 @@ to it**. REX does the thinking; the Bouncer holds the line. Everything that clea
 Bouncer, or is stopped by it, is appended to an immutable audit log.
 
 <div align="center">
-<img src="docs/images/rules.png" alt="The Stopping Rules — deterministic compliance guards enforced outside the LLM" width="92%" />
+<img src="assets/screenshots/rules.png" alt="The Stopping Rules — deterministic compliance guards enforced outside the LLM" width="92%" />
 <br/><sub><i>The Bouncer's stopping rules — RBI retry caps, TRAI quiet hours, dispute freezes, opt-outs — enforced <b>outside</b> the model.</i></sub>
 </div>
 
@@ -178,9 +178,9 @@ sequenceDiagram
 > **polling** the link status. The loop closes reliably in a local demo, no tunneling.
 
 <div align="center">
-<img src="docs/images/voice.png" alt="A live Hinglish voice call with REX" width="45%" />
+<img src="assets/screenshots/voice.png" alt="A live Hinglish voice call with REX" width="45%" />
 &nbsp;&nbsp;
-<img src="docs/images/whatsapp.png" alt="The clickable Razorpay Pay-now card and 'payment received — recovery complete' in the WhatsApp thread" width="45%" />
+<img src="assets/screenshots/whatsapp.png" alt="The clickable Razorpay Pay-now card and 'payment received — recovery complete' in the WhatsApp thread" width="45%" />
 <br/><sub><i>Left: a live Hinglish voice call with REX. Right: the real, clickable Razorpay "Pay now" card, then <b>"Payment received — recovery complete."</b></i></sub>
 </div>
 
