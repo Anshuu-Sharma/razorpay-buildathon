@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
+import { createPaymentLink } from "@/lib/dashboard/api";
 import { useDash } from "@/lib/dashboard/i18n";
 
 // Public agent, so the browser can start the session directly with just the ID
@@ -32,7 +33,15 @@ function Waveform({ active, color }: { active: boolean; color: string }) {
   );
 }
 
-function LiveCall({ customerName }: { customerName: string }) {
+function LiveCall({
+  txnId,
+  customerName,
+  onLinkSent,
+}: {
+  txnId: string;
+  customerName: string;
+  onLinkSent?: () => void;
+}) {
   const { d } = useDash();
   const c = d.convo;
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -115,6 +124,22 @@ function LiveCall({ customerName }: { customerName: string }) {
         dynamicVariables: {
           customer_name: customerName || "customer",
           company_name: "REX",
+        },
+        // REX can call this mid-conversation to mint a real Razorpay link and
+        // drop it into the customer's WhatsApp thread.
+        clientTools: {
+          send_payment_link: async () => {
+            try {
+              const r = await createPaymentLink(txnId);
+              onLinkSent?.();
+              setTurns((t) => [...t, { speaker: "AGENT", text: `🔗 ${c.linkSent}` }]);
+              return r.simulated
+                ? "Payment link created and sent to the customer's WhatsApp."
+                : "Secure Razorpay payment link sent to the customer's WhatsApp.";
+            } catch {
+              return "Could not send the payment link right now.";
+            }
+          },
         },
       });
     } catch (e) {
@@ -290,10 +315,18 @@ function LiveCall({ customerName }: { customerName: string }) {
   );
 }
 
-export default function CallView({ customerName }: { txnId: string; customerName: string }) {
+export default function CallView({
+  txnId,
+  customerName,
+  onLinkSent,
+}: {
+  txnId: string;
+  customerName: string;
+  onLinkSent?: () => void;
+}) {
   return (
     <ConversationProvider>
-      <LiveCall customerName={customerName} />
+      <LiveCall txnId={txnId} customerName={customerName} onLinkSent={onLinkSent} />
     </ConversationProvider>
   );
 }

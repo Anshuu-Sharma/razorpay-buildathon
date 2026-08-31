@@ -144,7 +144,11 @@ export default function ConversationPanel({
               ) : channel === "whatsapp" ? (
                 <WhatsAppThread messages={data?.messages ?? []} customerName={customerName} />
               ) : (
-                <CallView txnId={txnId} customerName={customerName} />
+                <CallView
+                  txnId={txnId}
+                  customerName={customerName}
+                  onLinkSent={() => setNonce((n) => n + 1)}
+                />
               )}
             </PhoneFrame>
           </div>

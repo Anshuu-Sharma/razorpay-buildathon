@@ -312,6 +312,7 @@ const DASH = {
       listening: "Listening…",
       mute: "Mute",
       unmute: "Unmute",
+      linkSent: "Payment link sent on WhatsApp",
     },
     ops: {
       title: "Operator actions",
@@ -810,6 +811,7 @@ const DASH = {
       listening: "सुन रहा…",
       mute: "म्यूट",
       unmute: "अनम्यूट",
+      linkSent: "पेमेंट लिंक WhatsApp पर भेज दिया",
     },
     ops: {
       title: "ऑपरेटर क्रियाएँ",
