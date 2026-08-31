@@ -429,14 +429,25 @@ export default function RexAssistant({ run, chat, focusedId, open, setOpen }: Pr
               {sttSupported ? (
                 <button
                   onClick={toggleMic}
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-[15px] transition-colors"
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-xl transition-colors"
                   style={listening
                     ? { background: "var(--d-bad)", color: "#fff" }
                     : { border: "1px solid var(--d-border)", color: "var(--d-muted)" }}
                   aria-label={d.assistant.mic}
                   title={listening ? d.assistant.listening : d.assistant.mic}
                 >
-                  {listening ? "■" : "🎙"}
+                  {listening ? (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                      <rect x="6" y="6" width="12" height="12" rx="2.5" />
+                    </svg>
+                  ) : (
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <rect x="9" y="2" width="6" height="12" rx="3" />
+                      <path d="M5 10v2a7 7 0 0 0 14 0v-2" />
+                      <line x1="12" y1="19" x2="12" y2="22" />
+                    </svg>
+                  )}
                 </button>
               ) : null}
               <input
