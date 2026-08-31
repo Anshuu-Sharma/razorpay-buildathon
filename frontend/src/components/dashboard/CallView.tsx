@@ -108,7 +108,15 @@ function LiveCall({ customerName }: { customerName: string }) {
     setTurns([]);
     setEnded(false);
     try {
-      conversation.startSession({ agentId: AGENT_ID, connectionType: "webrtc" });
+      conversation.startSession({
+        agentId: AGENT_ID,
+        connectionType: "webrtc",
+        // The agent's prompt/first message reference these placeholders.
+        dynamicVariables: {
+          customer_name: customerName || "customer",
+          company_name: "REX",
+        },
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : c.micDenied);
     }
