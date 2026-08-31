@@ -190,6 +190,11 @@ export const createPaymentLink = (id: string) =>
     {}
   );
 
+export const paymentLinkStatus = (id: string) =>
+  getJson<{ paid: boolean; status: string; current_state: string }>(
+    `/transactions/${encodeURIComponent(id)}/payment-link/status`
+  );
+
 export const startCall = (id: string) =>
   postJson<CallData>(`/transactions/${encodeURIComponent(id)}/call/start`, {});
 

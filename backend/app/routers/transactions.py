@@ -352,6 +352,18 @@ def create_payment_link_route(transaction_id: str, db: Session = Depends(get_db)
     }
 
 
+@router.get("/transactions/{transaction_id}/payment-link/status")
+def payment_link_status_route(transaction_id: str, db: Session = Depends(get_db)) -> dict:
+    """Poll Razorpay for the link's payment status. When paid, the transaction is
+    closed to RECOVERED (idempotent) and a system beat lands in the thread."""
+    from app.services.payment_links import payment_link_status
+
+    try:
+        return payment_link_status(db, transaction_id)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
+
+
 class DraftBody(BaseModel):
     prompt: str = Field(min_length=1, max_length=500)
 

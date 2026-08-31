@@ -1,9 +1,15 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useApi } from "@/hooks/useApi";
-import { createPaymentLink, draftMessage, fetchConversation, sendMessage } from "@/lib/dashboard/api";
+import {
+  createPaymentLink,
+  draftMessage,
+  fetchConversation,
+  paymentLinkStatus,
+  sendMessage,
+} from "@/lib/dashboard/api";
 import { useDash } from "@/lib/dashboard/i18n";
 import PhoneFrame from "./PhoneFrame";
 import WhatsAppThread from "./WhatsAppThread";
@@ -33,6 +39,8 @@ export default function ConversationPanel({
   const [sending, setSending] = useState(false);
   const [drafting, setDrafting] = useState(false);
   const [linking, setLinking] = useState(false);
+  const [awaitingPay, setAwaitingPay] = useState(false);
+  const [paid, setPaid] = useState(false);
 
   const load = useCallback(
     (signal: AbortSignal) => fetchConversation(txnId, signal),
@@ -53,16 +61,49 @@ export default function ConversationPanel({
     }
   };
 
+  const startAwaitingPayment = useCallback(() => {
+    setNonce((n) => n + 1); // link (and later the paid beat) show in the thread
+    setPaid(false);
+    setAwaitingPay(true);
+  }, []);
+
   const onPaymentLink = async () => {
     if (linking) return;
     setLinking(true);
     try {
       await createPaymentLink(txnId);
-      setNonce((n) => n + 1); // the link appears as a clickable message in the thread
+      startAwaitingPayment();
     } finally {
       setLinking(false);
     }
   };
+
+  // While a link is outstanding, poll Razorpay for the paid status. Webhooks
+  // can't reach localhost, so this is what closes the loop to RECOVERED.
+  useEffect(() => {
+    if (!awaitingPay) return;
+    let alive = true;
+    const timer = setInterval(async () => {
+      try {
+        const r = await paymentLinkStatus(txnId);
+        if (!alive) return;
+        if (r.paid) {
+          setPaid(true);
+          setAwaitingPay(false);
+          setNonce((n) => n + 1); // pulls in the "payment received" system beat
+        }
+      } catch {
+        /* transient — keep polling */
+      }
+    }, 4000);
+    // Stop chasing after ~3 minutes if nothing happens.
+    const stop = setTimeout(() => setAwaitingPay(false), 180000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+      clearTimeout(stop);
+    };
+  }, [awaitingPay, txnId]);
 
   const onDraft = async () => {
     const p = prompt.trim();
@@ -129,6 +170,36 @@ export default function ConversationPanel({
           </div>
         </div>
 
+        {/* Payment status banner */}
+        <AnimatePresence>
+          {(awaitingPay || paid) && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="flex items-center justify-center gap-2 px-4 py-2 text-[12.5px] font-semibold"
+              style={
+                paid
+                  ? { background: "rgba(37,211,102,0.15)", color: "#0a7d3f" }
+                  : { background: "var(--d-surface-2)", color: "var(--d-muted)" }
+              }
+            >
+              {paid ? (
+                c.paidBanner
+              ) : (
+                <>
+                  <motion.span
+                    style={{ width: 7, height: 7, borderRadius: 999, background: "#f0a020" }}
+                    animate={{ opacity: [1, 0.3, 1] }}
+                    transition={{ duration: 1.2, repeat: Infinity }}
+                  />
+                  {c.awaitingPay}
+                </>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-4 py-5">
           {/* Row 1 — phone */}
@@ -147,7 +218,7 @@ export default function ConversationPanel({
                 <CallView
                   txnId={txnId}
                   customerName={customerName}
-                  onLinkSent={() => setNonce((n) => n + 1)}
+                  onLinkSent={startAwaitingPayment}
                 />
               )}
             </PhoneFrame>

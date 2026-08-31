@@ -13,8 +13,17 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.enums import MessageDirection, MessageSender, MessageStatus
+from app.enums import (
+    ActionType,
+    MessageDirection,
+    MessageSender,
+    MessageStatus,
+    NodeName,
+    Outcome,
+    TransactionLifecycleState,
+)
 from app.models import Message, TransactionState
+from app.services.audit import record_audit
 
 
 def _build_client():
@@ -36,9 +45,18 @@ def _create_link(txn: TransactionState, client) -> tuple[str | None, str | None]
             "customer": {"contact": txn.customer_contact},
             "notify": {"sms": False, "email": False},
             "reminder_enable": False,
+            # Carry the transaction id so a paid-webhook (or our status poll) can
+            # reconcile the payment back to this case.
+            "notes": {"transaction_id": txn.transaction_id, "merchant_id": txn.merchant_id},
         }
     )
     return link.get("short_url"), link.get("id")
+
+
+def _remember_link_id(txn: TransactionState, ref: str | None) -> None:
+    meta = dict(txn.metadata_json or {})
+    meta["payment_link_id"] = ref
+    txn.metadata_json = meta
 
 
 def create_payment_link(db: Session, transaction_id: str, *, client=None) -> dict:
@@ -65,6 +83,8 @@ def create_payment_link(db: Session, transaction_id: str, *, client=None) -> dic
         url = f"https://rzp.io/i/{transaction_id[-6:]}"
         ref = f"sim_{transaction_id[-6:]}"
 
+    _remember_link_id(txn, None if simulated else ref)
+
     last = (
         db.query(Message)
         .filter_by(transaction_id=transaction_id)
@@ -90,3 +110,69 @@ def create_payment_link(db: Session, transaction_id: str, *, client=None) -> dic
     db.commit()
     db.refresh(msg)
     return {"url": url, "razorpay_id": ref, "simulated": simulated, "message": msg}
+
+
+def _add_system_beat(db: Session, transaction_id: str, text: str) -> None:
+    last = (
+        db.query(Message)
+        .filter_by(transaction_id=transaction_id)
+        .order_by(Message.seq.desc())
+        .first()
+    )
+    next_seq = (last.seq + 1) if last else 0
+    db.add(
+        Message(
+            transaction_id=transaction_id,
+            direction=MessageDirection.INBOUND,
+            sender=MessageSender.SYSTEM,
+            body=text,
+            status=MessageStatus.SENT,
+            seq=next_seq,
+            meta_json={"payment_captured": True},
+        )
+    )
+
+
+def payment_link_status(db: Session, transaction_id: str, *, client=None) -> dict:
+    """Poll Razorpay for the link's status; when it's paid, close the loop by
+    marking the transaction RECOVERED (idempotent) and dropping a system beat
+    into the thread. Reliable locally, where inbound webhooks can't reach us."""
+    txn = db.query(TransactionState).filter_by(transaction_id=transaction_id).first()
+    if txn is None:
+        raise ValueError("transaction not found")
+
+    already = txn.current_state == TransactionLifecycleState.RECOVERED
+    link_id = (txn.metadata_json or {}).get("payment_link_id")
+    if not link_id:
+        return {"paid": already, "status": "recovered" if already else "no_link",
+                "current_state": txn.current_state.value}
+
+    if client is None and settings.razorpay_key_id and settings.razorpay_key_secret:
+        try:
+            client = _build_client()
+        except Exception:
+            client = None
+    status_str = "unknown"
+    if client is not None:
+        try:
+            status_str = (client.payment_link.fetch(link_id) or {}).get("status", "unknown")
+        except Exception:
+            status_str = "unknown"
+
+    paid = status_str == "paid"
+    if paid and not already:
+        txn.current_state = TransactionLifecycleState.RECOVERED
+        record_audit(
+            db,
+            transaction_id=transaction_id,
+            node_name=NodeName.RECONCILE,
+            action_type=ActionType.STATE_TRANSITION,
+            payload={"event": "PAYMENT_LINK_PAID", "razorpay_id": link_id},
+            outcome=Outcome.SUCCESS,
+        )
+        _add_system_beat(db, transaction_id, "✅ Payment received — recovery complete.")
+        db.commit()
+        db.refresh(txn)
+
+    return {"paid": paid or already, "status": status_str,
+            "current_state": txn.current_state.value}

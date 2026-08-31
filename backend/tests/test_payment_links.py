@@ -79,3 +79,62 @@ def test_endpoint_returns_link_and_thread_shows_it(client, db_session, txn, monk
 
 def test_endpoint_404_for_unknown_txn(client):
     assert client.post("/api/v1/transactions/nope/payment-link").status_code == 404
+
+
+class _FetchClient:
+    """Stub whose payment_link.fetch returns a preset status."""
+
+    def __init__(self, status):
+        self._status = status
+
+        class _PL:
+            def create(_self, payload):
+                return {"id": "plink_TEST123", "short_url": "https://rzp.io/i/testABC"}
+
+            def fetch(_self, pid):
+                assert pid == "plink_TEST123"
+                return {"id": pid, "status": self._status}
+
+        self.payment_link = _PL()
+
+
+def test_status_marks_recovered_when_paid(db_session, txn):
+    payment_links.create_payment_link(db_session, "pl_1", client=_FetchClient("created"))
+
+    result = payment_links.payment_link_status(db_session, "pl_1", client=_FetchClient("paid"))
+
+    assert result["paid"] is True
+    assert result["current_state"] == "RECOVERED"
+    t = db_session.query(TransactionState).filter_by(transaction_id="pl_1").one()
+    assert t.current_state.value == "RECOVERED"
+    # A system "payment received" beat lands in the thread.
+    msgs = db_session.query(Message).filter_by(transaction_id="pl_1").all()
+    assert any(m.sender.value == "SYSTEM" for m in msgs)
+
+
+def test_status_not_paid_leaves_state(db_session, txn):
+    payment_links.create_payment_link(db_session, "pl_1", client=_FetchClient("created"))
+
+    result = payment_links.payment_link_status(db_session, "pl_1", client=_FetchClient("created"))
+
+    assert result["paid"] is False
+    t = db_session.query(TransactionState).filter_by(transaction_id="pl_1").one()
+    assert t.current_state.value != "RECOVERED"
+
+
+def test_status_without_link_is_graceful(db_session, txn):
+    result = payment_links.payment_link_status(db_session, "pl_1")
+    assert result["paid"] is False
+    assert result["status"] == "no_link"
+
+
+def test_status_endpoint_flags_paid(client, db_session, txn, monkeypatch):
+    monkeypatch.setattr(payment_links, "_build_client", lambda: _FetchClient("paid"))
+    monkeypatch.setattr(payment_links.settings, "razorpay_key_id", "rzp_test_x", raising=False)
+    monkeypatch.setattr(payment_links.settings, "razorpay_key_secret", "secret", raising=False)
+    payment_links.create_payment_link(db_session, "pl_1", client=_FetchClient("created"))
+
+    resp = client.get("/api/v1/transactions/pl_1/payment-link/status")
+    assert resp.status_code == 200
+    assert resp.json()["paid"] is True
+    assert resp.json()["current_state"] == "RECOVERED"
