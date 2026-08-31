@@ -15,8 +15,15 @@ export default function Navbar() {
   // header would clash, so it never renders there.
   if (pathname?.startsWith("/mission-control")) return null;
 
-  // The header only appears after the user enters the experience.
-  if (phase !== "entered") return null;
+  const isLanding = pathname === "/";
+  const isStory = pathname === "/story";
+
+  // The landing's header only appears once the intro is entered. Every other
+  // route (e.g. /story) always shows it — the intro gate doesn't apply there.
+  if (isLanding && phase !== "entered") return null;
+
+  // On /story the CTA leads INTO the product; on the landing it leads to the story.
+  const ctaHref = isStory ? "/mission-control" : "/story";
 
   return (
     <nav className="fixed inset-x-0 top-0 z-50 flex items-center justify-between bg-transparent px-6 py-4 md:px-10">
@@ -31,10 +38,13 @@ export default function Navbar() {
       <div className="flex items-center gap-5">
         <LocaleToggle />
         <Link
-          href="/story"
-          className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-6 py-3 text-sm font-medium text-fg transition-colors hover:bg-white/[0.16]"
+          href={ctaHref}
+          className={`inline-flex items-center gap-2 rounded-lg px-6 py-3 text-sm font-medium transition-colors ${
+            isStory ? "text-white hover:brightness-95" : "bg-white/10 text-fg hover:bg-white/[0.16]"
+          }`}
+          style={isStory ? { background: "var(--color-clay)" } : undefined}
         >
-          {t.nav.getStarted}
+          {isStory ? t.nav.enterConsole : t.nav.getStarted}
         </Link>
       </div>
     </nav>

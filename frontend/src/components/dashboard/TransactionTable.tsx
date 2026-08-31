@@ -66,10 +66,17 @@ export default function TransactionTable({
     );
   }
   return (
-    <div className="overflow-x-auto">
+    <div className="max-h-[68vh] overflow-auto">
       <table className="w-full border-collapse text-[13px]">
-        <thead>
-          <tr style={{ color: "var(--d-muted)", borderBottom: "1px solid var(--d-border)" }}>
+        <thead className="sticky top-0 z-10">
+          <tr
+            style={{
+              color: "var(--d-muted)",
+              borderBottom: "1px solid var(--d-border)",
+              background: "var(--d-surface)",
+              boxShadow: "inset 0 -1px 0 var(--d-border)",
+            }}
+          >
             <th className={`${TH} text-right`}>{col.serial}</th>
             <th className={TH}>{col.customer}</th>
             {showClass ? <th className={TH}>{col.class}</th> : null}
@@ -87,8 +94,13 @@ export default function TransactionTable({
               <tr
                 key={r.transaction_id}
                 onClick={() => onSelect(r.transaction_id)}
-                className="cursor-pointer transition-colors hover:bg-[var(--d-surface-2)]"
-                style={{ borderBottom: "1px solid var(--d-border)" }}
+                className="d-row cursor-pointer"
+                style={
+                  {
+                    borderBottom: "1px solid var(--d-border)",
+                    "--row-accent": CLASS_COLOR[r.failure_class],
+                  } as React.CSSProperties
+                }
               >
                 <td className={`${TD} d-num text-right text-[12px]`} style={{ color: "var(--d-faint)" }}>
                   #{r.serial}

@@ -35,18 +35,49 @@ function Select({
   children: React.ReactNode;
 }) {
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="rounded-lg border px-2.5 py-1.5 text-[12.5px] outline-none"
-      style={{
-        borderColor: "var(--d-border)",
-        background: "var(--d-surface)",
-        color: "var(--d-ink)",
-      }}
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="appearance-none rounded-lg border py-1.5 pl-2.5 pr-7 text-[12.5px] outline-none"
+        style={{
+          borderColor: "var(--d-border)",
+          background: "var(--d-surface)",
+          color: "var(--d-ink)",
+        }}
+      >
+        {children}
+      </select>
+      <svg
+        className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2"
+        width="12" height="12" viewBox="0 0 24 24" fill="none"
+        stroke="var(--d-faint)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"
+        aria-hidden
+      >
+        <path d="M6 9l6 6 6-6" />
+      </svg>
+    </div>
+  );
+}
+
+function FilterChip({ label, onClear }: { label: string; onClear: () => void }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full py-1 pl-2.5 pr-1.5 text-[11.5px] font-medium"
+      style={{ background: "var(--d-accent-soft)", color: "var(--d-accent)" }}
     >
-      {children}
-    </select>
+      {label}
+      <button
+        onClick={onClear}
+        className="grid h-4 w-4 place-items-center rounded-full transition-colors hover:bg-[var(--d-accent)]/15"
+        aria-label="clear filter"
+        style={{ color: "var(--d-accent)" }}
+      >
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+          <path d="M6 6l12 12M18 6L6 18" />
+        </svg>
+      </button>
+    </span>
   );
 }
 
@@ -103,17 +134,27 @@ export default function TransactionExplorer({ fixedClass }: { fixedClass?: numbe
           className="flex flex-wrap items-center gap-2.5 px-4 py-3"
           style={{ borderBottom: "1px solid var(--d-border)" }}
         >
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder={d.txns.searchPh}
-            className="w-52 rounded-lg border px-3 py-1.5 text-[12.5px] outline-none"
-            style={{
-              borderColor: "var(--d-border)",
-              background: "var(--d-surface)",
-              color: "var(--d-ink)",
-            }}
-          />
+          <div className="relative">
+            <svg
+              className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2"
+              width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="var(--d-faint)" strokeWidth="2" strokeLinecap="round" aria-hidden
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="M21 21l-4-4" />
+            </svg>
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={d.txns.searchPh}
+              className="w-56 rounded-lg border py-1.5 pl-8 pr-3 text-[12.5px] outline-none"
+              style={{
+                borderColor: "var(--d-border)",
+                background: "var(--d-surface)",
+                color: "var(--d-ink)",
+              }}
+            />
+          </div>
           {!fixedClass ? (
             <Select value={type} onChange={setType}>
               {TYPES.map((t) => (
@@ -131,10 +172,43 @@ export default function TransactionExplorer({ fixedClass }: { fixedClass?: numbe
               </option>
             ))}
           </Select>
-          <span className="ml-auto d-num text-[12px]" style={{ color: "var(--d-faint)" }}>
-            {rows.length} {d.txns.of} {fixedClass ? rows.length : data.total}
+          <span
+            className="ml-auto rounded-full px-2 py-0.5 d-num text-[11.5px]"
+            style={{ background: "var(--d-surface-2)", color: "var(--d-muted)" }}
+          >
+            {rows.length} {d.txns.resultsShown}
           </span>
         </div>
+
+        {/* Active-filter chips */}
+        {(type || status || q.trim()) ? (
+          <div
+            className="flex flex-wrap items-center gap-2 px-4 py-2.5"
+            style={{ borderBottom: "1px solid var(--d-border)" }}
+          >
+            {q.trim() ? <FilterChip label={`“${q.trim()}”`} onClear={() => setQ("")} /> : null}
+            {type ? (
+              <FilterChip
+                label={TYPES.find((t) => t.value === type)?.label ?? type}
+                onClear={() => setType("")}
+              />
+            ) : null}
+            {status ? (
+              <FilterChip label={d.status[status as LifecycleStatus] ?? status} onClear={() => setStatus("")} />
+            ) : null}
+            <button
+              onClick={() => {
+                setType("");
+                setStatus("");
+                setQ("");
+              }}
+              className="text-[11.5px] font-medium underline-offset-2 hover:underline"
+              style={{ color: "var(--d-muted)" }}
+            >
+              {d.txns.clear}
+            </button>
+          </div>
+        ) : null}
 
         <TransactionTable
           rows={rows}

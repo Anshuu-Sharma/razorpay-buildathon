@@ -12,6 +12,15 @@ export const dictionary = {
   en: {
     nav: {
       getStarted: "Get Started",
+      enterConsole: "Enter Console",
+    },
+    story: {
+      kicker: "A REX Story",
+      meet: "Meet Nayantara.",
+      scroll: "scroll to hear her out ↓",
+      back: "← back to REX",
+      enterMc: "Enter Mission Control",
+      watchLive: "Watch REX recover it — live",
     },
     landing: {
       enterKicker: "Click to enter",
@@ -73,6 +82,15 @@ export const dictionary = {
   hi: {
     nav: {
       getStarted: "शुरू करें",
+      enterConsole: "कंसोल खोलें",
+    },
+    story: {
+      kicker: "एक REX कहानी",
+      meet: "मिलिए नयनतारा से।",
+      scroll: "उसकी बात सुनने के लिए स्क्रॉल करें ↓",
+      back: "← REX पर वापस",
+      enterMc: "मिशन कंट्रोल खोलें",
+      watchLive: "REX को लाइव रिकवर करते देखें",
     },
     landing: {
       enterKicker: "प्रवेश करें",

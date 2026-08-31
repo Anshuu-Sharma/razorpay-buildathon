@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback } from "react";
+import { motion } from "framer-motion";
 import { useParams } from "next/navigation";
+import { container, item } from "@/lib/dashboard/motion";
 import MiniStat from "@/components/dashboard/MiniStat";
 import ClassInfoButton from "@/components/dashboard/ClassInfoButton";
 import SimulateButton from "@/components/dashboard/SimulateButton";
@@ -37,29 +39,41 @@ export default function ClassPage() {
   if (!isClient) return <Loading label={d.state.classpg} />;
 
   return (
-    <div className="mx-auto max-w-[1220px] space-y-5 p-5 md:p-6">
-      {/* Header */}
-      <div className="flex items-start gap-3">
-        <span className="mt-0.5 h-8 w-1.5 rounded-full" style={{ background: color }} />
+    <motion.div
+      className="mx-auto max-w-[1220px] space-y-5 p-5 md:p-6"
+      variants={container}
+      initial="hidden"
+      animate="show"
+    >
+      {/* Class-tinted header banner */}
+      <motion.div
+        variants={item}
+        className="flex items-start gap-3 rounded-2xl p-5"
+        style={{
+          background: `linear-gradient(135deg, color-mix(in srgb, ${color} 13%, var(--d-surface)), var(--d-surface) 70%)`,
+          border: "1px solid var(--d-border)",
+          borderLeft: `4px solid ${color}`,
+        }}
+      >
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h1 className="text-lg font-semibold tracking-tight">{d.classLabel[id]}</h1>
+            <h1 className="text-xl font-semibold tracking-tight">{d.classLabel[id]}</h1>
             <span
-              className="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
-              style={{ background: "var(--d-surface-2)", color: "var(--d-faint)" }}
+              className="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white"
+              style={{ background: color }}
             >
               {cp.classTag} {id}
             </span>
           </div>
-          <p className="mt-0.5 text-[12.5px]" style={{ color: "var(--d-muted)" }}>
+          <p className="mt-1 text-[13px]" style={{ color: "var(--d-muted)" }}>
             {solve.trigger}
           </p>
         </div>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           <SimulateButton failureClass={id} accent={color} />
           <ClassInfoButton classId={id} color={color} />
         </div>
-      </div>
+      </motion.div>
 
       {loading ? (
         <Loading label={d.state.classMetrics} />
@@ -72,25 +86,44 @@ export default function ClassPage() {
             const c = m.by_class[String(id)];
             if (!c) return null;
             return (
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-                <MiniStat label={cp.mRecovered} value={inr(c.recovered_inr, { compact: true })} accent="var(--d-ok)" />
-                <MiniStat label={cp.mAtRisk} value={inr(c.at_risk_inr, { compact: true })} />
-                <MiniStat label={cp.mRate} value={pct(c.recovery_rate)} accent={color} />
+              <motion.div variants={item} className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+                <MiniStat
+                  label={cp.mRecovered}
+                  value={inr(c.recovered_inr, { compact: true })}
+                  countTo={c.recovered_inr}
+                  countFormat={fmtInrCompact}
+                  accent="var(--d-ok)"
+                  emphasis
+                />
+                <MiniStat label={cp.mAtRisk} value={inr(c.at_risk_inr, { compact: true })} countTo={c.at_risk_inr} countFormat={fmtInrCompact} />
+                <MiniStat label={cp.mRate} value={pct(c.recovery_rate)} accent={color} emphasis />
                 <MiniStat label={cp.mCases} value={`${c.recovered_count}/${c.count}`} />
                 <MiniStat label={cp.mAvgTtr} value={durTime(c.avg_time_to_recovery_seconds, d)} />
                 <MiniStat label={cp.mTopPlaybook} value={humanize(c.top_playbook)} />
-              </div>
+              </motion.div>
             );
           })()}
 
           {/* Per-class operational tracker, above the ledger */}
-          {id === 3 ? <MandateCalendar /> : null}
-          {id === 4 ? <ReceivablesBoard /> : null}
+          {id === 3 ? (
+            <motion.div variants={item}>
+              <MandateCalendar />
+            </motion.div>
+          ) : null}
+          {id === 4 ? (
+            <motion.div variants={item}>
+              <ReceivablesBoard />
+            </motion.div>
+          ) : null}
 
           {/* Class-filtered ledger */}
-          <TransactionExplorer fixedClass={id} />
+          <motion.div variants={item}>
+            <TransactionExplorer fixedClass={id} />
+          </motion.div>
         </>
       )}
-    </div>
+    </motion.div>
   );
 }
+
+const fmtInrCompact = (v: number) => inr(Math.round(v), { compact: true });

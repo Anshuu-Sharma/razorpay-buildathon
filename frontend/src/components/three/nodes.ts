@@ -17,10 +17,10 @@ export interface NodeDef {
 export const RING = 22;
 
 export const NODES: NodeDef[] = [
-  { label: "PAYMENT GATEWAY", shape: "cube", color: "#00e5ff", pos: [RING, 5, 0], scale: 4.6 },
-  { label: "CHECKOUT FLOW", shape: "panel", color: "#4a9bff", pos: [0, 3, RING], scale: 5.2 },
-  { label: "MANDATE LEDGER", shape: "cylinder", color: "#f5a623", pos: [-RING, 6, 0], scale: 5.0 },
-  { label: "RECEIVABLES", shape: "tower", color: "#9b6bff", pos: [0, 4, -RING], scale: 4.4 },
+  { label: "FAILED PAYMENTS", shape: "cube", color: "#00e5ff", pos: [RING, 5, 0], scale: 4.6 },
+  { label: "ABANDONED CHECKOUTS", shape: "panel", color: "#4a9bff", pos: [0, 3, RING], scale: 5.2 },
+  { label: "FAILED SUBSCRIPTIONS", shape: "cylinder", color: "#f5a623", pos: [-RING, 6, 0], scale: 5.0 },
+  { label: "OVERDUE INVOICES", shape: "tower", color: "#9b6bff", pos: [0, 4, -RING], scale: 4.4 },
 ];
 
 export const AGENT: [number, number, number] = [0, 1, 0];

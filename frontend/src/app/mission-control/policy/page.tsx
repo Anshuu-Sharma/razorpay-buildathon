@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { motion } from "framer-motion";
+import PageHeader from "@/components/dashboard/PageHeader";
 import { Card, CardHeader } from "@/components/dashboard/Card";
 import { ErrorState, Loading } from "@/components/dashboard/PageState";
 import { useApi } from "@/hooks/useApi";
@@ -171,16 +173,17 @@ export default function PolicyPage() {
         : { fg: "var(--d-bad)", label: pp.halted };
 
   return (
-    <div className="mx-auto max-w-[1000px] space-y-5 p-5 md:p-6">
-      <div className="flex items-start gap-3">
-        <div className="min-w-0">
-          <h1 className="text-lg font-semibold tracking-tight">{pp.title}</h1>
-          <p className="mt-0.5 text-[12.5px]" style={{ color: "var(--d-muted)" }}>
-            {pp.desc}
-          </p>
-        </div>
-        <div className="ml-auto flex shrink-0 items-center gap-2">
-          {editing ? (
+    <motion.div
+      className="mx-auto max-w-[1000px] space-y-5 p-5 md:p-6"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+    >
+      <PageHeader
+        title={pp.title}
+        subtitle={pp.desc}
+        right={
+          editing ? (
             <>
               <button
                 onClick={() => setEditing(false)}
@@ -206,14 +209,18 @@ export default function PolicyPage() {
             >
               {pp.editRules}
             </button>
-          )}
-        </div>
+          )
+        }
+      />
+      <div
+        className="flex items-center gap-2 rounded-lg px-3 py-2 text-[11.5px]"
+        style={{ background: "var(--d-accent-soft)", color: "var(--d-accent)" }}
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M12 2l7 4v6c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6z" />
+        </svg>
+        {editing ? pp.editHint : d.comp.rexNote}
       </div>
-      {editing ? (
-        <p className="-mt-3 text-[11.5px]" style={{ color: "var(--d-faint)" }}>
-          {pp.editHint}
-        </p>
-      ) : null}
 
       {/* Ceiling + discount */}
       <div className="grid gap-4 md:grid-cols-2">
@@ -424,6 +431,6 @@ export default function PolicyPage() {
           </div>
         </div>
       </Card>
-    </div>
+    </motion.div>
   );
 }

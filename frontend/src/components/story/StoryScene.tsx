@@ -10,6 +10,7 @@ import {
   useTransform,
 } from "framer-motion";
 import { STORY } from "@/lib/story";
+import { useLocale } from "@/lib/i18n/LocaleProvider";
 import Nayantara from "./Nayantara";
 import SpeechCloud from "./SpeechCloud";
 import StoryClassCard from "./StoryClassCard";
@@ -23,6 +24,7 @@ const AMP = 15; // horizontal weave amplitude (vw)
  * curve draws itself in sync, and the beats' text rides the opposite side.
  */
 export default function StoryScene() {
+  const { locale, t } = useLocale();
   const sceneRef = useRef<HTMLElement>(null);
   const [active, setActive] = useState(0);
   const activeRef = useRef(0);
@@ -143,7 +145,7 @@ export default function StoryScene() {
                     : "w-full max-w-md px-6 md:mr-[58%] md:ml-auto md:max-w-sm md:px-0 md:pl-[3vw] md:text-right"
                 }
               >
-                <SpeechCloud lines={b.lines} />
+                <SpeechCloud lines={b.lines[locale]} />
                 {b.classId ? <StoryClassCard classId={b.classId} /> : null}
 
                 {b.id === "rex" ? (
@@ -159,11 +161,11 @@ export default function StoryScene() {
                       className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-medium text-white transition-transform hover:scale-[1.03]"
                       style={{ background: "var(--color-fg)" }}
                     >
-                      Enter Mission Control
+                      {t.story.enterMc}
                       <span aria-hidden>→</span>
                     </Link>
                     <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted">
-                      Watch REX recover it — live
+                      {t.story.watchLive}
                     </span>
                   </motion.div>
                 ) : null}

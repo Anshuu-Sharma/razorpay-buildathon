@@ -6,9 +6,46 @@
  * styling stays consistent and the bundle stays lean.
  */
 
+import { animate, motion } from "framer-motion";
+import { useEffect, useRef } from "react";
+
 interface XY {
   x: number;
   y: number;
+}
+
+/** Animated number that counts up from 0 on mount / when the value changes.
+ * Writes to the DOM node directly (no React state), so it never trips the
+ * strict set-state-in-effect lint and never re-renders the tree per frame. */
+export function CountUp({
+  value,
+  format,
+  className,
+  duration = 0.9,
+}: {
+  value: number;
+  format: (n: number) => string;
+  className?: string;
+  duration?: number;
+}) {
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    const controls = animate(0, value, {
+      duration,
+      ease: [0.22, 1, 0.36, 1],
+      onUpdate: (v) => {
+        node.textContent = format(v);
+      },
+    });
+    return () => controls.stop();
+  }, [value, format, duration]);
+  return (
+    <span ref={ref} className={className}>
+      {format(0)}
+    </span>
+  );
 }
 
 function buildPath(points: XY[]): string {
@@ -180,28 +217,38 @@ export function Gauge({
   );
 }
 
-/** Decreasing horizontal funnel. */
+/** Decreasing horizontal funnel — the overview centrepiece. Bars fill on load,
+ * staggered, and each stage carries its count plus (where known) its rupee value. */
 export function FunnelBars({
   stages,
 }: {
-  stages: { label: string; value: number; color: string }[];
+  stages: { label: string; value: number; color: string; amount?: string }[];
 }) {
   const max = Math.max(...stages.map((s) => s.value)) || 1;
   return (
-    <div className="space-y-2.5">
-      {stages.map((s) => (
+    <div className="space-y-3">
+      {stages.map((s, i) => (
         <div key={s.label} className="flex items-center gap-3">
-          <span className="w-24 shrink-0 text-[12px]" style={{ color: "var(--d-muted)" }}>
+          <span className="w-24 shrink-0 text-[12.5px]" style={{ color: "var(--d-muted)" }}>
             {s.label}
           </span>
-          <div className="relative h-7 flex-1 overflow-hidden rounded-md" style={{ background: "var(--d-surface-2)" }}>
-            <div
-              className="flex h-full items-center rounded-md pl-2.5 text-[12px] font-semibold text-white transition-all"
-              style={{ width: `${Math.max((s.value / max) * 100, 8)}%`, background: s.color }}
+          <div className="relative h-9 flex-1 overflow-hidden rounded-lg" style={{ background: "var(--d-surface-2)" }}>
+            <motion.div
+              className="flex h-full items-center rounded-lg pl-3 text-white"
+              style={{ background: s.color }}
+              initial={{ width: 0 }}
+              animate={{ width: `${Math.max((s.value / max) * 100, 9)}%` }}
+              transition={{ duration: 0.7, delay: 0.1 + i * 0.09, ease: [0.22, 1, 0.36, 1] }}
             >
-              <span className="d-num">{s.value}</span>
-            </div>
+              <span className="d-num text-[13px] font-semibold">{s.value}</span>
+            </motion.div>
           </div>
+          <span
+            className="d-num w-20 shrink-0 text-right text-[12px]"
+            style={{ color: "var(--d-muted)" }}
+          >
+            {s.amount ?? ""}
+          </span>
         </div>
       ))}
     </div>

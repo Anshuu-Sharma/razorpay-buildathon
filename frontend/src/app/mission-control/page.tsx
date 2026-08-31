@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback } from "react";
+import { motion } from "framer-motion";
+import { container, item } from "@/lib/dashboard/motion";
 import { Card, CardHeader, Chip } from "@/components/dashboard/Card";
 import KpiCard from "@/components/dashboard/KpiCard";
-import { AreaChart, Donut, FunnelBars, Gauge, HBarList } from "@/components/dashboard/charts";
+import { AreaChart, CountUp, Donut, FunnelBars, HBarList } from "@/components/dashboard/charts";
 import { ErrorState, Loading } from "@/components/dashboard/PageState";
 import { useApi } from "@/hooks/useApi";
 import { fetchMetrics } from "@/lib/dashboard/api";
@@ -11,6 +13,10 @@ import { humanize, inr, pct, shortDate } from "@/lib/dashboard/format";
 import { useDash, durTime } from "@/lib/dashboard/i18n";
 import { CLASS_COLOR } from "@/lib/dashboard/status";
 import { useDashboardRefresh } from "@/lib/dashboard/refresh";
+
+// Stable formatters (module scope) so CountUp's effect doesn't re-run per render.
+const fmtPct = (v: number) => `${Math.round(v)}%`;
+const fmtInrCompact = (v: number) => inr(Math.round(v), { compact: true });
 
 export default function OverviewPage() {
   const { bump } = useDashboardRefresh();
@@ -28,6 +34,8 @@ export default function OverviewPage() {
   }));
   const sparkValues = m.time_series.map((p) => p.cumulative_inr);
 
+  const totalWon =
+    [1, 2, 3, 4].reduce((s, n) => s + (m.by_class[String(n)]?.recovered_inr ?? 0), 0) || 1;
   const classSegments = [1, 2, 3, 4]
     .map((n) => ({
       label: d.classLabel[n],
@@ -36,13 +44,14 @@ export default function OverviewPage() {
     }))
     .filter((s) => s.value > 0);
 
+  const cr = (v: number) => inr(v, { compact: true });
   const funnelStages = [
-    { label: o.ft.atRisk, value: m.funnel.at_risk, color: "var(--d-slate)" },
-    { label: o.ft.intervened, value: m.funnel.intervened, color: CLASS_COLOR[2] },
-    { label: o.ft.recovered, value: m.funnel.recovered, color: "var(--d-ok)" },
+    { label: o.ft.atRisk, value: m.funnel.at_risk, color: "var(--d-slate)", amount: cr(m.at_risk_inr) },
+    { label: o.ft.intervened, value: m.funnel.intervened, color: CLASS_COLOR[2], amount: cr(m.in_flight_inr) },
+    { label: o.ft.recovered, value: m.funnel.recovered, color: "var(--d-ok)", amount: cr(m.recovered_inr) },
     { label: o.ft.escalated, value: m.funnel.escalated, color: "var(--d-info)" },
     { label: o.ft.stopped, value: m.funnel.cancelled, color: "var(--d-muted)" },
-    { label: o.ft.lost, value: m.funnel.failed, color: "var(--d-bad)" },
+    { label: o.ft.lost, value: m.funnel.failed, color: "var(--d-bad)", amount: cr(m.lost_inr) },
   ];
 
   const channelRows = Object.entries(m.channel_breakdown).map(([ch, s]) => ({
@@ -62,12 +71,58 @@ export default function OverviewPage() {
     }));
 
   return (
-    <div className="mx-auto max-w-[1220px] space-y-5 p-5 md:p-6">
-      {/* Hero KPI row */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+    <motion.div
+      className="mx-auto max-w-[1220px] space-y-5 p-5 md:p-6"
+      variants={container}
+      initial="hidden"
+      animate="show"
+    >
+      {/* Hero — the GRRR banner */}
+      <motion.div variants={item} className="d-hero relative overflow-hidden rounded-2xl p-6 md:p-7">
+        <div className="d-hero-mesh" aria-hidden />
+        <div className="relative flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+          <div>
+            <span className="d-label" style={{ color: "rgba(255,255,255,0.72)" }}>
+              {o.gaugeTitle}
+            </span>
+            <div
+              className="d-num mt-2 font-semibold leading-none text-white"
+              style={{ fontSize: "clamp(3rem, 7vw, 4.75rem)" }}
+            >
+              <CountUp value={m.grrr * 100} format={fmtPct} />
+            </div>
+            <p className="mt-3 max-w-md text-[13px]" style={{ color: "rgba(255,255,255,0.85)" }}>
+              {o.kRecoveredSub(inr(m.at_risk_inr, { compact: true }), m.counts.recovered)}
+            </p>
+          </div>
+          <div className="flex gap-8">
+            <div>
+              <span className="d-label" style={{ color: "rgba(255,255,255,0.72)" }}>
+                {o.kRecovered}
+              </span>
+              <div className="d-num mt-1.5 text-[22px] font-semibold text-white">
+                {inr(m.recovered_inr, { compact: true })}
+              </div>
+            </div>
+            <div>
+              <span className="d-label" style={{ color: "rgba(255,255,255,0.72)" }}>
+                {o.avgTtr}
+              </span>
+              <div className="d-num mt-1.5 text-[22px] font-semibold text-white">
+                {durTime(m.avg_time_to_recovery_seconds, d)}
+              </div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* KPI row */}
+      <motion.div variants={item} className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <KpiCard
           label={o.kRecovered}
           value={inr(m.recovered_inr, { compact: true })}
+          countTo={m.recovered_inr}
+          countFormat={fmtInrCompact}
           accent="var(--d-ok)"
           emphasis
           spark={sparkValues}
@@ -76,36 +131,31 @@ export default function OverviewPage() {
         <KpiCard
           label={o.kAtRisk}
           value={inr(m.at_risk_inr, { compact: true })}
+          countTo={m.at_risk_inr}
+          countFormat={fmtInrCompact}
           sub={o.kAtRiskSub(m.funnel.at_risk)}
         />
         <KpiCard
           label={o.kInFlight}
           value={inr(m.in_flight_inr, { compact: true })}
+          countTo={m.in_flight_inr}
+          countFormat={fmtInrCompact}
           accent="var(--d-warn)"
           sub={o.kInFlightSub}
         />
         <KpiCard
           label={o.kLost}
           value={inr(m.lost_inr, { compact: true })}
+          countTo={m.lost_inr}
+          countFormat={fmtInrCompact}
           accent="var(--d-bad)"
           sub={o.kLostSub(m.counts.failed)}
         />
-      </div>
+      </motion.div>
 
-      {/* Gauge + Funnel */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="flex flex-col items-center justify-center py-5">
-          <CardHeader title={o.gaugeTitle} subtitle={o.gaugeSub} />
-          <Gauge value={m.grrr} color="var(--d-ok)" />
-          <p className="mt-1 text-[12px]" style={{ color: "var(--d-muted)" }}>
-            {o.avgTtr}{" "}
-            <span className="d-num" style={{ color: "var(--d-ink)" }}>
-              {durTime(m.avg_time_to_recovery_seconds, d)}
-            </span>
-          </p>
-        </Card>
-
-        <Card className="lg:col-span-2">
+      {/* Funnel — the centrepiece */}
+      <motion.div variants={item}>
+        <Card>
           <CardHeader
             title={o.funnelTitle}
             subtitle={o.funnelSub}
@@ -119,26 +169,28 @@ export default function OverviewPage() {
             <FunnelBars stages={funnelStages} />
           </div>
         </Card>
-      </div>
+      </motion.div>
 
       {/* Recovery over time */}
-      <Card>
-        <CardHeader
-          title={o.timeTitle}
-          subtitle={o.timeSub}
-          right={
-            <span className="d-num text-[13px] font-semibold" style={{ color: "var(--d-ok)" }}>
-              {inr(m.recovered_inr)}
-            </span>
-          }
-        />
-        <div className="px-3 pb-2">
-          <AreaChart data={series} color="var(--d-ok)" />
-        </div>
-      </Card>
+      <motion.div variants={item}>
+        <Card>
+          <CardHeader
+            title={o.timeTitle}
+            subtitle={o.timeSub}
+            right={
+              <span className="d-num text-[13px] font-semibold" style={{ color: "var(--d-ok)" }}>
+                {inr(m.recovered_inr)}
+              </span>
+            }
+          />
+          <div className="px-3 pb-2">
+            <AreaChart data={series} color="var(--d-ok)" />
+          </div>
+        </Card>
+      </motion.div>
 
       {/* By class · Channels · Compliance */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <motion.div variants={item} className="grid gap-4 lg:grid-cols-3">
         <Card>
           <CardHeader title={o.byClassTitle} subtitle={o.byClassSub} />
           <div className="flex items-center gap-5 px-5 pb-5">
@@ -160,7 +212,10 @@ export default function OverviewPage() {
                       />
                       <span style={{ color: "var(--d-muted)" }}>{d.classShort[n]}</span>
                     </span>
-                    <span className="d-num">{pct(c.recovery_rate)}</span>
+                    <span className="d-num">
+                      <span style={{ color: "var(--d-faint)" }}>{inr(c.recovered_inr, { compact: true })} · </span>
+                      {pct(c.recovered_inr / totalWon)}
+                    </span>
                   </li>
                 );
               })}
@@ -201,7 +256,7 @@ export default function OverviewPage() {
             )}
           </div>
         </Card>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

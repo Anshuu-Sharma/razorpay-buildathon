@@ -34,7 +34,7 @@ export const CLASS_COLOR: Record<number, string> = {
   1: "#0ea5e9", // sky — real-time degradation
   2: "#6366f1", // indigo — checkout abandonment
   3: "#f59e0b", // amber — subscription/mandate
-  4: "#8b5cf6", // violet — B2B receivables
+  4: "#10b981", // emerald — B2B receivables
 };
 
 /** AI classification chip tone. */

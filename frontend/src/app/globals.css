@@ -346,8 +346,8 @@ html.theme-light ::selection { background: var(--color-clay); color: #fff; }
   --d-ink: #1c1917;
   --d-muted: #78716c;
   --d-faint: #a8a29e;
-  --d-accent: #4f46e5;
-  --d-accent-soft: #eef2ff;
+  --d-accent: #0f766e;
+  --d-accent-soft: #f0fdfa;
   --d-ok: #059669;
   --d-ok-soft: #ecfdf5;
   --d-warn: #d97706;
@@ -367,6 +367,38 @@ html.theme-dashboard body {
   background-color: var(--d-bg);
   color: var(--d-ink);
   font-family: var(--font-ui);
+  /* Faint hairline grid for depth — barely visible, but it stops the page
+     reading as a flat white sheet. Fixed so it doesn't scroll with content. */
+  background-image:
+    linear-gradient(to right, rgba(28, 25, 23, 0.022) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(28, 25, 23, 0.022) 1px, transparent 1px);
+  background-size: 46px 46px;
+  background-attachment: fixed;
+}
+
+/* ---- Overview hero (the GRRR banner) ---- */
+.d-hero {
+  color: #fff;
+  background: radial-gradient(130% 150% at 0% 0%, #14b8a6 0%, #0f766e 42%, #115e59 100%);
+  box-shadow: 0 18px 40px -20px rgba(15, 118, 110, 0.55);
+}
+.d-hero-mesh {
+  position: absolute;
+  inset: -25%;
+  pointer-events: none;
+  background:
+    radial-gradient(38% 40% at 18% 28%, rgba(153, 246, 228, 0.4), transparent 60%),
+    radial-gradient(34% 36% at 82% 18%, rgba(45, 212, 191, 0.32), transparent 60%),
+    radial-gradient(46% 48% at 72% 92%, rgba(6, 78, 74, 0.5), transparent 62%);
+  filter: blur(6px);
+  animation: d-hero-float 15s ease-in-out infinite alternate;
+}
+@keyframes d-hero-float {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(-3%, -2.5%, 0) scale(1.09); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .d-hero-mesh { animation: none; }
 }
 html.theme-dashboard .grain,
 html.theme-dashboard .vignette {
@@ -399,6 +431,13 @@ html.theme-dashboard ::selection { background: var(--d-accent); color: #fff; }
   border: 1px solid var(--d-border);
   border-radius: 14px;
   box-shadow: var(--d-shadow);
+}
+
+/* Table row hover with a per-row accent tick (set --row-accent inline). */
+html.theme-dashboard .d-row { transition: background-color 0.12s ease; }
+html.theme-dashboard .d-row:hover {
+  background: var(--d-surface-2);
+  box-shadow: inset 3px 0 0 var(--row-accent, var(--d-accent));
 }
 
 /* Dashboard uses Geist (Latin-only) — fall back to the Devanagari sans under HI

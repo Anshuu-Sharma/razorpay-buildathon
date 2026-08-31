@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Card } from "./Card";
-import { Sparkline } from "./charts";
+import { CountUp, Sparkline } from "./charts";
 
 export default function KpiCard({
   label,
@@ -9,6 +9,8 @@ export default function KpiCard({
   accent = "var(--d-ink)",
   spark,
   emphasis = false,
+  countTo,
+  countFormat,
 }: {
   label: string;
   value: string;
@@ -16,6 +18,9 @@ export default function KpiCard({
   accent?: string;
   spark?: number[];
   emphasis?: boolean;
+  /** When set, the figure counts up to this number on load using countFormat. */
+  countTo?: number;
+  countFormat?: (n: number) => string;
 }) {
   return (
     <Card
@@ -31,7 +36,11 @@ export default function KpiCard({
           className="d-num text-[26px] font-semibold leading-none tracking-tight"
           style={{ color: emphasis ? accent : "var(--d-ink)" }}
         >
-          {value}
+          {countTo != null && countFormat ? (
+            <CountUp value={countTo} format={countFormat} />
+          ) : (
+            value
+          )}
         </div>
         {sub ? (
           <div className="mt-1.5 text-[12px]" style={{ color: "var(--d-muted)" }}>

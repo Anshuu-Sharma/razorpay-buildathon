@@ -12,7 +12,11 @@ export default function LocaleToggle() {
     <div
       role="group"
       aria-label="Language"
-      className="relative flex items-center rounded-full border border-white/10 bg-white/[0.02] p-0.5 font-mono text-[11px] uppercase tracking-[0.2em]"
+      className="relative flex items-center rounded-full border p-0.5 font-mono text-[11px] uppercase tracking-[0.2em]"
+      style={{
+        borderColor: "color-mix(in srgb, currentColor 18%, transparent)",
+        background: "color-mix(in srgb, currentColor 4%, transparent)",
+      }}
     >
       {LOCALES.map((l) => {
         const active = locale === l;

@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect } from "react";
 import Link from "next/link";
 import StoryScene from "@/components/story/StoryScene";
+import { useLocale } from "@/lib/i18n/LocaleProvider";
 
 // Runs before paint on the client (falls back to useEffect on the server so SSR
 // doesn't warn), so we can pin scroll to the top before the page is ever shown.
@@ -16,6 +17,7 @@ const useIsomorphicLayoutEffect =
  * vignette + recolour body) and carry the tokens on the wrapper for SSR.
  */
 export default function StoryPage() {
+  const { t } = useLocale();
   // Pin to the top BEFORE the first paint, so the story never shows a late beat
   // even for a frame when navigating in from a scrolled-down landing page.
   useIsomorphicLayoutEffect(() => {
@@ -40,12 +42,12 @@ export default function StoryPage() {
       style={{ background: "#f5f4ef", color: "#23201c" }}
     >
       <header className="px-6 pt-28 pb-6 text-center">
-        <p className="story-kicker">A REX Story</p>
+        <p className="story-kicker">{t.story.kicker}</p>
         <h1 className="story-display mx-auto mt-4 max-w-2xl text-[clamp(2.4rem,5.5vw,3.8rem)]">
-          Meet Nayantara.
+          {t.story.meet}
         </h1>
         <p className="mt-5 font-mono text-[11px] uppercase tracking-[0.28em] text-muted">
-          scroll to hear her out ↓
+          {t.story.scroll}
         </p>
       </header>
 
@@ -56,7 +58,7 @@ export default function StoryPage() {
           href="/"
           className="font-mono text-[11px] uppercase tracking-[0.22em] text-muted transition-colors hover:text-fg"
         >
-          ← back to REX
+          {t.story.back}
         </Link>
       </footer>
     </div>

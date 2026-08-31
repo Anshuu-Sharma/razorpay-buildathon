@@ -91,6 +91,8 @@ const DASH = {
       allStatuses: "All statuses",
       of: "of",
       noMatch: "No transactions match these filters.",
+      clear: "Clear",
+      resultsShown: "shown",
       col: {
         serial: "#",
         customer: "Customer",
@@ -156,6 +158,7 @@ const DASH = {
       desc: "The append-only, tamper-evident ledger — every action REX took, in order. Rows can never be edited or deleted.",
       searchPh: "Filter by transaction, node, action…",
       entries: (a: number, b: number) => `${a} of ${b} entries`,
+      allNodes: "All stages",
     },
     comp: {
       title: "Stopping Rules",
@@ -170,6 +173,9 @@ const DASH = {
       catalogTitle: "Rule Catalog",
       catalogSub: "Every guard the engine can invoke",
       noFired: "No stopping rules fired yet.",
+      armed: "Armed, never needed",
+      firedGroup: "Fired this batch",
+      rexNote: "REX proposes actions within these rules. Only an operator can change them.",
     },
     policy: {
       title: "Policy Inspector",
@@ -592,6 +598,8 @@ const DASH = {
       allStatuses: "सभी स्थितियाँ",
       of: "में से",
       noMatch: "इन फ़िल्टरों से कोई लेन-देन मेल नहीं खाता।",
+      clear: "साफ़ करें",
+      resultsShown: "दिखाए गए",
       col: {
         serial: "#",
         customer: "ग्राहक",
@@ -657,6 +665,7 @@ const DASH = {
       desc: "केवल-जोड़ने वाला, छेड़छाड़-प्रमाण बहीखाता — REX की हर कार्रवाई, क्रम में। पंक्तियाँ कभी संपादित या हटाई नहीं जा सकतीं।",
       searchPh: "लेन-देन, नोड, क्रिया से फ़िल्टर करें…",
       entries: (a: number, b: number) => `${b} में से ${a} प्रविष्टियाँ`,
+      allNodes: "सभी चरण",
     },
     comp: {
       title: "स्टॉपिंग नियम",
@@ -671,6 +680,9 @@ const DASH = {
       catalogTitle: "नियम सूची",
       catalogSub: "इंजन द्वारा लागू किए जा सकने वाले सभी गार्ड",
       noFired: "अभी कोई स्टॉपिंग नियम लागू नहीं हुआ।",
+      armed: "तैयार, कभी ज़रूरत नहीं पड़ी",
+      firedGroup: "इस बैच में लागू",
+      rexNote: "REX इन्हीं नियमों के भीतर कार्रवाई सुझाता है। केवल ऑपरेटर इन्हें बदल सकता है।",
     },
     policy: {
       title: "नीति निरीक्षक",
