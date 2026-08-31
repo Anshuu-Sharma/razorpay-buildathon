@@ -4,24 +4,7 @@
 
 ### An autonomous, compliant, bilingual agent that recovers failed payments and *proves* it did so within the rules.
 
-<br/>
-
-![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
-![LangGraph](https://img.shields.io/badge/LangGraph-orchestration-1C3C3C)
-![Gemini](https://img.shields.io/badge/Google-Gemini-4285F4?logo=google&logoColor=white)
-<br/>
-![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
-![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
-![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
-![Razorpay](https://img.shields.io/badge/Razorpay-payments-0C2451?logo=razorpay&logoColor=white)
-![ElevenLabs](https://img.shields.io/badge/ElevenLabs-Hinglish%20voice-111111)
-<br/>
-![Tests](https://img.shields.io/badge/tests-213%20passing-2ea44f)
-![Bilingual](https://img.shields.io/badge/bilingual-EN%20%2F%20%E0%A4%B9%E0%A4%BF%E0%A4%A8%E0%A5%8D%E0%A4%A6%E0%A5%80-cc785c)
-![Compliance](https://img.shields.io/badge/guardrails-RBI%20%2B%20TRAI-6E56CF)
-
-<br/>
+<br>
 
 **[The Problem](#-the-problem)** · **[The Solution](#-the-solution)** · **[Four Shapes](#-the-problem-in-four-shapes)** · **[The Bouncer](#-recovery-you-can-trust)** · **[The Money Moment](#-the-money-moment)** · **[Architecture](#%EF%B8%8F-architecture)** · **[Run It](#-running-it-locally)**
 
