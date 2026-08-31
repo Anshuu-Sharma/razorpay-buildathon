@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     # key makes the /assistant/tts endpoint return no audio, so the frontend
     # falls back to the browser's built-in voice; add a key to upgrade.
     elevenlabs_api_key: str = ""
-    elevenlabs_voice_id: str = "21m00Tcm4TlvDq8ikWAM"  # override with a warm Indian voice
+    elevenlabs_voice_id: str = "EXAVITQu4vr4xnSDxMaL"  # Sarah (premade, free-tier OK)
     elevenlabs_model: str = "eleven_multilingual_v2"
 
     # When false, channel adapters simulate dispatch instead of making real

@@ -17,6 +17,24 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 _ENDPOINT = "https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+# A "premade" voice every account (including the free tier) can use via the API.
+# Library voices require a paid plan, so if the configured voice is blocked we
+# retry with this one rather than falling all the way back to the browser voice.
+_FALLBACK_VOICE = "EXAVITQu4vr4xnSDxMaL"  # Sarah — mature, reassuring, confident
+
+
+def _speak(voice: str, text: str, key: str, model: str) -> tuple[int, bytes]:
+    resp = httpx.post(
+        _ENDPOINT.format(voice_id=voice),
+        headers={"xi-api-key": key, "content-type": "application/json"},
+        json={
+            "text": text,
+            "model_id": model,
+            "voice_settings": {"stability": 0.4, "similarity_boost": 0.85},
+        },
+        timeout=30.0,
+    )
+    return resp.status_code, resp.content if resp.status_code == 200 else resp.text.encode()[:200]
 
 
 def synthesize(
@@ -30,21 +48,18 @@ def synthesize(
     if not key or not text.strip():
         return None
     voice = voice_id or settings.elevenlabs_voice_id
-    url = _ENDPOINT.format(voice_id=voice)
+    mdl = model or settings.elevenlabs_model
     try:
-        resp = httpx.post(
-            url,
-            headers={"xi-api-key": key, "content-type": "application/json"},
-            json={
-                "text": text,
-                "model_id": model or settings.elevenlabs_model,
-                "voice_settings": {"stability": 0.4, "similarity_boost": 0.85},
-            },
-            timeout=30.0,
-        )
-        if resp.status_code == 200:
-            return resp.content
-        logger.warning("ElevenLabs TTS failed (%s): %s", resp.status_code, resp.text[:200])
+        status, body = _speak(voice, text, key, mdl)
+        if status == 200:
+            return body
+        logger.warning("ElevenLabs TTS failed for voice %s (%s): %s", voice, status, body[:180])
+        # Voice-level block (paid-only library voice) → retry a free premade voice.
+        if status in (401, 402, 403, 404) and voice != _FALLBACK_VOICE:
+            status, body = _speak(_FALLBACK_VOICE, text, key, mdl)
+            if status == 200:
+                return body
+            logger.warning("ElevenLabs fallback voice also failed (%s): %s", status, body[:180])
     except Exception as exc:  # network/SDK error → browser fallback
         logger.warning("ElevenLabs TTS error (%s); frontend will use browser voice.", exc)
     return None
