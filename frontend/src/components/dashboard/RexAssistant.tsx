@@ -10,6 +10,7 @@ import { useDash, tVocab } from "@/lib/dashboard/i18n";
 import { useDashboardRefresh } from "@/lib/dashboard/refresh";
 import { useExplorerFilter } from "@/lib/dashboard/explorerFilter";
 import type { LifecycleStatus } from "@/lib/dashboard/types";
+import { useSpeech } from "@/hooks/useSpeech";
 import type { FeedItem } from "@/hooks/useRecoveryRun";
 import type { useRecoveryRun } from "@/hooks/useRecoveryRun";
 import type { useAssistant } from "@/hooks/useAssistant";
@@ -38,6 +39,8 @@ export default function RexAssistant({ run, chat, focusedId, open, setOpen }: Pr
   const { status: explorerStatus, setStatus: setExplorerStatus, query: explorerQuery } =
     useExplorerFilter();
   const [input, setInput] = useState("");
+  const { listening, listen, stop, speak, sttSupported } = useSpeech(locale);
+  const [voiceOn, setVoiceOn] = useState(true);
   const [pending, setPending] = useState<{ txnId: string; status: string } | null>(null);
   const [pendingRun, setPendingRun] = useState<{ txnId: string } | null>(null);
   const [batch, setBatch] = useState<{ ids: string[] } | null>(null);
@@ -82,8 +85,8 @@ export default function RexAssistant({ run, chat, focusedId, open, setOpen }: Pr
     return m ? Number(m[1]) : null;
   };
 
-  const submit = async () => {
-    const text = input.trim();
+  const submit = async (spoken?: string) => {
+    const text = (spoken ?? input).trim();
     if (!text || chat.busy) return;
     setInput("");
     const res = await chat.send(text, {
@@ -93,7 +96,14 @@ export default function RexAssistant({ run, chat, focusedId, open, setOpen }: Pr
       status_filter: explorerStatus || null,
       search: explorerQuery || null,
     });
+    if (res?.reply && voiceOn) speak(res.reply); // REX speaks its answer
     if (res?.action) await dispatch(res.action);
+  };
+
+  const toggleMic = () => {
+    if (!open) setOpen(true);
+    if (listening) stop();
+    else listen((t) => submit(t)); // speech → send as a message
   };
 
   const runBatchAll = async () => {
@@ -224,6 +234,15 @@ export default function RexAssistant({ run, chat, focusedId, open, setOpen }: Pr
                 </div>
               </div>
               <div className="ml-auto flex items-center gap-1">
+                <button
+                  onClick={() => { if (voiceOn) window.speechSynthesis?.cancel(); setVoiceOn((v) => !v); }}
+                  className="grid h-7 w-7 place-items-center rounded-md text-[13px] transition-colors hover:bg-[var(--d-surface-2)]"
+                  style={{ color: voiceOn ? "var(--d-accent)" : "var(--d-faint)" }}
+                  aria-label={voiceOn ? d.assistant.voiceOn : d.assistant.voiceOff}
+                  title={voiceOn ? d.assistant.voiceOn : d.assistant.voiceOff}
+                >
+                  {voiceOn ? "🔊" : "🔇"}
+                </button>
                 <button
                   onClick={() => { chat.clear(); run.reset(); }}
                   className="rounded-md px-2 py-1 text-[11px] transition-colors hover:bg-[var(--d-surface-2)]"
@@ -407,16 +426,29 @@ export default function RexAssistant({ run, chat, focusedId, open, setOpen }: Pr
 
             {/* Composer */}
             <div className="flex items-center gap-2 px-3 py-3" style={{ borderTop: "1px solid var(--d-border)" }}>
+              {sttSupported ? (
+                <button
+                  onClick={toggleMic}
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-[15px] transition-colors"
+                  style={listening
+                    ? { background: "var(--d-bad)", color: "#fff" }
+                    : { border: "1px solid var(--d-border)", color: "var(--d-muted)" }}
+                  aria-label={d.assistant.mic}
+                  title={listening ? d.assistant.listening : d.assistant.mic}
+                >
+                  {listening ? "■" : "🎙"}
+                </button>
+              ) : null}
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
-                placeholder={d.assistant.placeholder}
+                placeholder={listening ? d.assistant.listening : d.assistant.placeholder}
                 className="flex-1 rounded-xl border px-3 py-2 text-[12.5px] outline-none"
                 style={{ borderColor: "var(--d-border)", background: "var(--d-bg)", color: "var(--d-ink)" }}
               />
               <button
-                onClick={submit}
+                onClick={() => submit()}
                 disabled={!input.trim() || chat.busy}
                 className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-white disabled:opacity-40"
                 style={{ background: "var(--d-accent)" }}

@@ -394,6 +394,10 @@ const DASH = {
       recoverOne: "Just one",
       batchRunning: "Working the queue…",
       didBatch: (rec: number, total: number) => `Done — recovered ${rec} of ${total}.`,
+      mic: "Speak to REX",
+      listening: "Listening…",
+      voiceOn: "REX voice on",
+      voiceOff: "REX voice off",
     },
     cal: {
       paid: "Paid",
@@ -886,6 +890,10 @@ const DASH = {
       recoverOne: "सिर्फ़ एक",
       batchRunning: "क्यू पर काम हो रहा है…",
       didBatch: (rec: number, total: number) => `हो गया — ${total} में से ${rec} वसूल किए।`,
+      mic: "REX से बोलें",
+      listening: "सुन रहा है…",
+      voiceOn: "REX आवाज़ चालू",
+      voiceOff: "REX आवाज़ बंद",
     },
     cal: {
       paid: "भुगतान हुआ",

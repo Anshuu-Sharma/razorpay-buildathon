@@ -33,6 +33,13 @@ class Settings(BaseSettings):
     # is unavailable, so an unknown name never breaks the demo.
     gemini_draft_model: str = "gemini-flash-lite-latest"
 
+    # ElevenLabs — human voice for the REX assistant's spoken replies. An empty
+    # key makes the /assistant/tts endpoint return no audio, so the frontend
+    # falls back to the browser's built-in voice; add a key to upgrade.
+    elevenlabs_api_key: str = ""
+    elevenlabs_voice_id: str = "21m00Tcm4TlvDq8ikWAM"  # override with a warm Indian voice
+    elevenlabs_model: str = "eleven_multilingual_v2"
+
     # When false, channel adapters simulate dispatch instead of making real
     # outbound calls. Kept off by default so the batch harness never spams.
     live_mode: bool = False
